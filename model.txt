@@ -1,0 +1,36 @@
+
+┌───────────────────────────────────────────┐
+│             Input Image                   │
+└───────────────────────────────────────────┘
+              ↓
+┌───────────────────────────────┐
+│ Slide Attention Classifier    │   <-- from predict_distortion_type.py
+└───────────────────────────────┘
+              ↓
+     25D Softmax Output (P)
+              ↓
+┌───────────────────────────────┐
+│ Restormer + Volterra Model    │   <-- restormer_volterra.py
+│   (conditioned on P)          │
+└───────────────────────────────┘
+              ↓
+        Restored Output
+
+
+✅ 목표
+분류기와 복원기를 통합한 하나의 end-to-end 파이프라인으로 구성
+→ 한 번의 입력으로:
+
+Slide Attention 분류기 → soft label 예측
+
+복원기 → condition vector를 기반으로 복원 수행
+
+
+
+| 파일                           | 수정 내용                                           |
+| ---------------------------- | ----------------------------------------------- |
+| `restormer_volterra.py`      | `forward(self, x, condition_vector)`처럼 입력받도록 수정 |
+| `volterra_layer.py`          | 그대로 유지                                          |
+| `dataset_kadid10k.py`        | soft label 학습이 가능하도록 `label` 반환 추가              |
+| `predict_distortion_type.py` | `DistortionClassifier` 클래스로 구조화                 |
+| `train.py`, `test.py`        | 모두 `joint_train_restore.py`로 통합 가능              |
