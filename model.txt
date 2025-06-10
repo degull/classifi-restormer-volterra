@@ -27,10 +27,37 @@ Slide Attention 분류기 → soft label 예측
 
 
 
-| 파일                           | 수정 내용                                           |
-| ---------------------------- | ----------------------------------------------- |
-| `restormer_volterra.py`      | `forward(self, x, condition_vector)`처럼 입력받도록 수정 |
-| `volterra_layer.py`          | 그대로 유지                                          |
-| `dataset_kadid10k.py`        | soft label 학습이 가능하도록 `label` 반환 추가              |
-| `predict_distortion_type.py` | `DistortionClassifier` 클래스로 구조화                 |
-| `train.py`, `test.py`        | 모두 `joint_train_restore.py`로 통합 가능              |
+아래는 `classi+restormer+volterra` 폴더의 파일 목록을 기준으로, \*\*"End-to-End 통합 실행"\*\*을 위해 **수정이 필요한 파일과 그 이유**를 정리한 표입니다.
+
+---
+
+## ✅ 수정 필요 여부 요약
+
+| 파일명                              | 수정 필요 여부        | 수정 이유                                                      |
+| -------------------------------- | --------------- | ---------------------------------------------------------- |
+| ✅ `main_adaptive_restoration.py` | **필수**          | 통합 실행 파이프라인 구축의 중심 파일. 분류기 + 복원기 호출 및 출력 저장                |
+| ✅ `dataset_kadid10k.py`          | **선택적**         | 배치 평가 or 전체 테스트 시 사용 예정이면 `__getitem__`에서 image만 반환하도록 수정  |
+| ✅ `predict_distortion_type.py`   | ❌ (기능만 따로 사용)   | 해당 기능은 `main_adaptive_restoration.py`에서 직접 수행하므로 별도 수정 불필요 |
+| ✅ `restormer_volterra.py`        | ✅ **이미 수정 완료됨** | condition\_vector (25D) 주입 구조가 구현되어 있음 (이전 요청으로 완료됨)       |
+| ✅ `slide_transformer.py`         | **부분 수정 필요**    | `num_classes=25`, `.squeeze(1)` 등 소폭 수정 필요 (이전 답변 참고)      |
+| ✅ `volterra_layer.py`            | ❌               | 내부 Volterra 계산에만 관련. condition\_vector와 무관하므로 그대로 사용 가능    |
+
+---
+
+## ✅ 최종 정리
+
+| 수정 필수                            | 설명                                      |
+| -------------------------------- | --------------------------------------- |
+| ✅ `main_adaptive_restoration.py` | **통합 실행 파이프라인 작성 (입력 → 분류기 → 복원기)**     |
+| ✅ `slide_transformer.py`         | `num_classes=25`, 출력 `.squeeze(1)` 적용 등 |
+| ✅ `restormer_volterra.py`        | (이미 수정 완료됨 – soft label 주입 구조 포함)       |
+
+| 선택적 수정                | 설명                             |
+| --------------------- | ------------------------------ |
+| `dataset_kadid10k.py` | 배치 테스트 시만 수정 (단일 이미지 추론이면 불필요) |
+
+| 수정 불필요                       | 이유                                   |
+| ---------------------------- | ------------------------------------ |
+| `predict_distortion_type.py` | 기존 추론 테스트용 스크립트. 기능을 main에서 직접 호출 가능 |
+| `volterra_layer.py`          | condition과 무관. 그대로 사용 가능             |
+

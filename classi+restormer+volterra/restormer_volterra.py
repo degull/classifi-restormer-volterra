@@ -8,7 +8,7 @@ from volterra_layer import VolterraLayer2D  # 사용자 구현 기반
 class BiasFreeLayerNorm(nn.Module):
     def __init__(self, normalized_shape):
         super().__init__()
-        self.weight = nn.Parameter(torch.ones(1, normalized_shape, 1, 1))  # [1, C, 1, 1]
+        self.weight = nn.Parameter(torch.ones(1, normalized_shape, 1, 1))
 
     def forward(self, x):
         var = torch.var(x, dim=1, keepdim=True, unbiased=False)
@@ -32,6 +32,7 @@ class WithBiasLayerNorm(nn.Module):
 def LayerNorm(normalized_shape, bias=False):
     return WithBiasLayerNorm(normalized_shape) if bias else BiasFreeLayerNorm(normalized_shape)
 
+
 # ✅ GDFN
 class GDFN(nn.Module):
     def __init__(self, dim, expansion_factor, bias):
@@ -48,6 +49,7 @@ class GDFN(nn.Module):
         x = F.gelu(x1) * x2
         x = self.project_out(x)
         return x
+
 
 # ✅ MDTA
 class MDTA(nn.Module):
@@ -78,6 +80,7 @@ class MDTA(nn.Module):
         out = self.project_out(out)
         return out
 
+
 # ✅ Transformer Block with Volterra
 class TransformerBlock(nn.Module):
     def __init__(self, dim, num_heads, ffn_expansion_factor, bias, LayerNorm_type, volterra_rank):
@@ -95,6 +98,7 @@ class TransformerBlock(nn.Module):
         x = x + self.volterra2(self.ffn(self.norm2(x)))
         return x
 
+
 # ✅ Encoder / Decoder
 class Encoder(nn.Module):
     def __init__(self, dim, depth, **kwargs):
@@ -104,6 +108,7 @@ class Encoder(nn.Module):
     def forward(self, x):
         return self.body(x)
 
+
 class Decoder(nn.Module):
     def __init__(self, dim, depth, **kwargs):
         super().__init__()
@@ -111,6 +116,7 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         return self.body(x)
+
 
 # ✅ Down / Up sample
 class Downsample(nn.Module):
@@ -120,6 +126,7 @@ class Downsample(nn.Module):
 
     def forward(self, x):
         return self.body(x)
+
 
 class Upsample(nn.Module):
     def __init__(self, in_channels):
@@ -131,6 +138,7 @@ class Upsample(nn.Module):
 
     def forward(self, x):
         return self.body(x)
+
 
 # ✅ 전체 RestormerVolterra 모델 (condition_vector 주입)
 class RestormerVolterra(nn.Module):
