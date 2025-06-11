@@ -16,21 +16,27 @@ def get_default_transform():
 
 # ✅ KADID10K 분류용 Dataset (distorted + label)
 class KADID10KClassifierDataset(Dataset):
-    def __init__(self, csv_path, transform=None):
+    def __init__(self, csv_path, image_dir, transform=None):
         self.data = pd.read_csv(csv_path)
+        self.image_dir = image_dir  # e.g., E:/restormer+volterra/data/KADID10K/images
         self.transform = transform if transform else get_default_transform()
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        img_path = self.data.iloc[idx]["dis_img_path"]
-        label = int(self.data.iloc[idx]["distortion_type"])  # 0~24
+        # ✅ dist_img: e.g., I01_01_01.png
+        filename = self.data.iloc[idx]["dist_img"]
 
+        # ✅ distortion class 추출: filename = I01_**01**_01.png → 중간 segment가 distortion type
+        distortion_code = int(filename.split("_")[1]) - 1  # "01" → 0, ..., "25" → 24
+
+        img_path = os.path.join(self.image_dir, filename)
         image = Image.open(img_path).convert("RGB")
         image = self.transform(image)
 
-        return image, label
+        return image, distortion_code
+
 
 
 # ✅ KADID10K 복원용 Dataset (distorted + reference)
