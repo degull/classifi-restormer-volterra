@@ -1,3 +1,4 @@
+# E:\restormer+volterra\classi+restormer+volterra\slide_transformer.py
 import torch
 import torch.nn as nn
 from timm.layers import trunc_normal_

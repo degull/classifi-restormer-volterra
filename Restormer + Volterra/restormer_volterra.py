@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from volterra_layer import VolterraLayer2D  # 사용자 구현 기반
+from volterra_layer import VolterraLayer2D
 
 # ✅ LayerNorm 정의
 class BiasFreeLayerNorm(nn.Module):

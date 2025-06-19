@@ -98,17 +98,17 @@ from csiq_dataset import CSIQDataset
 
 # ✅ 학습 설정
 BATCH_SIZE = 2
-EPOCHS = 60
+EPOCHS = 100
 LR = 2e-4
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # ✅ 경로 설정
-KADID_CSV = 'E:/restormer+volterra/data/KADID10K/kadid10k.csv'
-TID_CSV = 'E:/restormer+volterra/data/tid2013/mos.csv'
-TID_DISTORTED_DIR = 'E:/restormer+volterra/data/tid2013/distorted_images'
-TID_REFERENCE_DIR = 'E:/restormer+volterra/data/tid2013/reference_images'
-CSIQ_CSV = 'E:/restormer+volterra/data/CSIQ/CSIQ.txt'
-CSIQ_ROOT = 'E:/restormer+volterra/data/CSIQ'
+KADID_CSV = 'E:/MRVNet2D/dataset/KADID10K/kadid10k.csv'
+TID_CSV = 'E:/MRVNet2D/dataset/tid2013/mos.csv'
+TID_DISTORTED_DIR = 'E:/MRVNet2D/dataset/tid2013/distorted_images'
+TID_REFERENCE_DIR = 'E:/MRVNet2D/dataset/tid2013/reference_images'
+CSIQ_CSV = 'E:/MRVNet2D/dataset/CSIQ/CSIQ.txt'
+CSIQ_ROOT = 'E:/MRVNet2D/dataset/CSIQ'
 
 SAVE_DIR = 'checkpoints/restormer_volterra_all_60'
 os.makedirs(SAVE_DIR, exist_ok=True)

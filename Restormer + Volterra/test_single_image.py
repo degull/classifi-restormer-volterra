@@ -17,7 +17,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 CHECKPOINT_PATH = r"E:\MRVNet2D\checkpoints\restormer_volterra_all\epoch_58.pth"
 
 # ✅ 단일 이미지 경로
-DISTORTED_PATH = r"E:\MRVNet2D\dataset\KADID10K\images\I81_24_05.png"
+DISTORTED_PATH = r"E:\MRVNet2D\dataset\KADID10K\images\I81_21_05.png"
 REFERENCE_PATH = r"E:\MRVNet2D\dataset\KADID10K\images\I81.png"
 SAVE_PATH = r"E:\MRVNet2D\results\comparison_output.png"
 
@@ -42,40 +42,44 @@ reference_img = transform(reference_img_pil).unsqueeze(0).to(DEVICE)
 # ✅ 복원 수행
 with torch.no_grad():
     with autocast():
-        output = model(distorted_img)
+        restored_img = model(distorted_img)
 
-# ✅ 복원 결과 → NumPy
-output_np = output.squeeze(0).cpu().numpy().transpose(1, 2, 0)
+# ✅ NumPy 변환
+distorted_np = distorted_img.squeeze(0).cpu().numpy().transpose(1, 2, 0)
 reference_np = reference_img.squeeze(0).cpu().numpy().transpose(1, 2, 0)
-output_np = np.clip(output_np, 0, 1)
+restored_np = restored_img.squeeze(0).cpu().numpy().transpose(1, 2, 0)
+
+distorted_np = np.clip(distorted_np, 0, 1)
 reference_np = np.clip(reference_np, 0, 1)
+restored_np = np.clip(restored_np, 0, 1)
 
 # ✅ PSNR / SSIM 계산
-psnr = compute_psnr(reference_np, output_np, data_range=1.0)
-ssim = compute_ssim(reference_np, output_np, data_range=1.0, channel_axis=2)
-print(f"✅ PSNR: {psnr:.2f} dB")
-print(f"✅ SSIM: {ssim:.4f}")
+psnr_restored = compute_psnr(reference_np, restored_np, data_range=1.0)
+ssim_restored = compute_ssim(reference_np, restored_np, data_range=1.0, channel_axis=2)
 
-# ✅ 나란히 이미지 저장
-distorted_np = distorted_img.squeeze(0).cpu().numpy().transpose(1, 2, 0)
-distorted_np = np.clip(distorted_np, 0, 1)
+psnr_distorted = compute_psnr(reference_np, distorted_np, data_range=1.0)
+ssim_distorted = compute_ssim(reference_np, distorted_np, data_range=1.0, channel_axis=2)
 
+# ✅ 결과 출력
+print(f"📌 [참조 vs 왜곡] PSNR: {psnr_distorted:.2f} dB, SSIM: {ssim_distorted:.4f}")
+print(f"✅ [참조 vs 복원] PSNR: {psnr_restored:.2f} dB, SSIM: {ssim_restored:.4f}")
+
+# ✅ 나란히 이미지 저장 (ref | dist | restored)
 ref_img = (reference_np * 255).astype(np.uint8)
 dist_img = (distorted_np * 255).astype(np.uint8)
-restored_img = (output_np * 255).astype(np.uint8)
+restored_img = (restored_np * 255).astype(np.uint8)
 
-# PIL로 변환 후 가로로 연결
 ref_pil = Image.fromarray(ref_img)
 dist_pil = Image.fromarray(dist_img)
 restored_pil = Image.fromarray(restored_img)
+
 concat_img = Image.new('RGB', (256 * 3, 256))
 concat_img.paste(ref_pil, (0, 0))
 concat_img.paste(dist_pil, (256, 0))
 concat_img.paste(restored_pil, (512, 0))
 concat_img.save(SAVE_PATH)
 
-print(f"✅ Comparison image saved to: {SAVE_PATH}")
-
+print(f"✅ 이미지 저장 완료: {SAVE_PATH}")
 
 # ref x
 """ 

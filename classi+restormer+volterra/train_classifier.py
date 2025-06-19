@@ -1,3 +1,4 @@
+# E:\restormer+volterra\classi+restormer+volterra\train_classifier.py
 import os
 import torch
 import torch.nn as nn
@@ -42,7 +43,8 @@ def main():
     os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
     BATCH_SIZE = 32
-    EPOCHS = 50
+    TOTAL_EPOCHS = 150
+    RESUME_EPOCH = 72
     LR = 1e-4
     NUM_CLASSES = 25
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -53,7 +55,6 @@ def main():
         transforms.ToTensor(),
         transforms.Normalize([0.5]*3, [0.5]*3)
     ])
-
     train_dataset = KADID10KClassifierDataset(CSV_PATH, IMAGE_DIR, transform=transform)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True)
 
@@ -63,14 +64,27 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
+    # ✅ 이어서 학습할 경우 체크포인트 로드
+    resume_path = os.path.join(CHECKPOINT_DIR, f"classifier_epoch{RESUME_EPOCH}.pth")
+    if os.path.exists(resume_path):
+        print(f"🔁 이전 가중치 불러오는 중: {resume_path}")
+        checkpoint = torch.load(resume_path)
+        try:
+            model.load_state_dict(checkpoint)
+        except RuntimeError as e:
+            print(f"⚠️ strict=True 로드 실패: {e}")
+            print("🔁 strict=False 로 로드 시도")
+            model.load_state_dict(checkpoint, strict=False)
+        print("✅ 모델 가중치 로드 완료")
+
     # ✅ 학습 루프
-    for epoch in range(1, EPOCHS + 1):
+    for epoch in range(RESUME_EPOCH + 1, TOTAL_EPOCHS + 1):
         model.train()
         total_loss = 0
         correct = 0
         total = 0
 
-        loop = tqdm(train_loader, total=len(train_loader), desc=f"[Epoch {epoch}/{EPOCHS}]")
+        loop = tqdm(train_loader, total=len(train_loader), desc=f"[Epoch {epoch}/{TOTAL_EPOCHS}]")
         for images, labels in loop:
             images, labels = images.to(DEVICE), labels.to(DEVICE)
 
@@ -98,9 +112,11 @@ def main():
         ckpt_path = os.path.join(CHECKPOINT_DIR, f"classifier_epoch{epoch}.pth")
         torch.save(model.state_dict(), ckpt_path)
 
-    print("🎉 분류기 학습 완료!")
+    print("🎉 분류기 이어서 학습 완료!")
 
 
 # ✅ Windows-safe entry point
 if __name__ == "__main__":
     main()
+
+# ✅ Epoch 139: Loss = 0.3504, Acc = 85.68%

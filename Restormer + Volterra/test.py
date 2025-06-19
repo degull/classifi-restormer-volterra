@@ -118,6 +118,7 @@ print(f"✅ 비교 이미지 저장 완료: {SAVE_PATH}")
 
 
 # 복원 수치만 출력하는 테스트 코드
+# E:\MRVNet2D\Restormer + Volterra\test.py
 import os
 import torch
 import torchvision.transforms as transforms
