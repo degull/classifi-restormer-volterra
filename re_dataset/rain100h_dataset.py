@@ -11,8 +11,9 @@ class Rain100HDataset(Dataset):
             root_dir (str): e.g., E:/restormer+volterra/data/rain100H
             split (str): 'train' or 'test'
         """
-        self.rain_dir = os.path.join(root_dir, split, 'rain')
-        self.norain_dir = os.path.join(root_dir, split, 'norain')
+        self.rain_dir = os.path.join(root_dir, "rain")
+        self.norain_dir = os.path.join(root_dir, "norain")
+
 
         self.rain_imgs = natsort.natsorted(os.listdir(self.rain_dir))
         self.norain_imgs = natsort.natsorted(os.listdir(self.norain_dir))

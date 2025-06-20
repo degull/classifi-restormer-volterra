@@ -13,9 +13,9 @@ from torch.cuda.amp import autocast, GradScaler
 
 from restormer_volterra import RestormerVolterra
 from kadid_dataset import KADID10KDataset
-from rain100h_dataset import Rain100HDataset
-from gopro_dataset import GoProDataset
-from sidd_dataset import SIDDDataset
+from re_dataset.rain100h_dataset import Rain100HDataset
+from re_dataset.gopro_dataset import GoProDataset
+from re_dataset.sidd_dataset import SIDD_Dataset
 
 # ✅ 학습 설정
 BATCH_SIZE = 2
@@ -27,7 +27,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 KADID_CSV = 'E:/restormer+volterra/data/KADID10K/kadid10k.csv'
 RAIN100H_DIR = 'E:/restormer+volterra/data/rain100H/train'
 GOPRO_CSV = 'E:/restormer+volterra/data/GOPRO_Large/gopro_train_pairs.csv'
-SIDD_DIR = 'E:/restormer+volterra/data/SIDD/train'
+SIDD_DIR = 'E:/restormer+volterra/data/SIDD'
 
 SAVE_DIR = 'checkpoints/restormer_volterra_train_4sets'
 os.makedirs(SAVE_DIR, exist_ok=True)
@@ -62,7 +62,7 @@ def main():
         kadid_dataset = KADID10KDataset(csv_file=KADID_CSV, transform=transform)
         rain100h_dataset = Rain100HDataset(root_dir=RAIN100H_DIR, transform=transform)
         gopro_dataset = GoProDataset(csv_path=GOPRO_CSV, transform=transform)
-        sidd_dataset = SIDDDataset(root_dir=SIDD_DIR, transform=transform)
+        sidd_dataset = SIDD_Dataset(root_dir=SIDD_DIR, transform=transform)
 
         # ✅ 데이터셋 통합
         train_dataset = ConcatDataset([

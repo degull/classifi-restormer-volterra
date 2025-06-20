@@ -41,3 +41,11 @@ class GoProDataset(Dataset):
         print(f"[{idx}] blur tensor shape: {blur.shape}, sharp tensor shape: {sharp.shape}")
 
         return blur, sharp
+
+
+if __name__ == '__main__':
+    csv_path = 'E:/restormer+volterra/data/GOPRO_Large/gopro_train_pairs.csv'
+    dataset = GoProDataset(csv_path=csv_path)
+    print(f"Total samples: {len(dataset)}")
+    sample_blur, sample_sharp = dataset[0]
+    print(f"Sample shape: blur {sample_blur.shape}, sharp {sample_sharp.shape}")
