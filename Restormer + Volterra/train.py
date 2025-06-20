@@ -1,5 +1,4 @@
-# E:\MRVNet2D\Restormer + Volterra\train.py
-#train.py
+# train.py
 # E:/MRVNet2D/Restormer + Volterra/train.py
 
 import os
@@ -9,7 +8,10 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
 from tqdm import tqdm
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler  # ✅ 최신 버전 사용
+import numpy as np
+from skimage.metrics import peak_signal_noise_ratio as compute_psnr
+from skimage.metrics import structural_similarity as compute_ssim
 
 from restormer_volterra import RestormerVolterra
 from kadid_dataset import KADID10KDataset
@@ -53,7 +55,7 @@ def main():
     model = RestormerVolterra().to(DEVICE)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=LR)
-    scaler = GradScaler()
+    scaler = GradScaler(device='cuda')
 
     for epoch in range(EPOCHS):
         transform = get_transform(epoch)
@@ -79,13 +81,14 @@ def main():
 
         model.train()
         epoch_loss = 0
+        total_psnr, total_ssim, count = 0.0, 0.0, 0
         loop = tqdm(train_loader, desc=f"Epoch [{epoch+1}/{EPOCHS}]", leave=False)
 
         for distorted, reference in loop:
             distorted, reference = distorted.to(DEVICE), reference.to(DEVICE)
             optimizer.zero_grad()
 
-            with autocast():
+            with autocast(device_type='cuda'):
                 output = model(distorted)
                 loss = criterion(output, reference)
 
@@ -94,12 +97,54 @@ def main():
             scaler.update()
 
             epoch_loss += loss.item()
-            loop.set_postfix(loss=loss.item())
 
-        print(f"Epoch [{epoch+1}/{EPOCHS}] Loss: {epoch_loss / len(train_loader):.6f}")
+            # ✅ PSNR / SSIM 계산 (batch 내 첫 샘플 기준)
+            out_np = output[0].detach().cpu().numpy().transpose(1, 2, 0)
+            ref_np = reference[0].detach().cpu().numpy().transpose(1, 2, 0)
+
+            psnr = compute_psnr(ref_np, out_np, data_range=1.0)
+            ssim = compute_ssim(ref_np, out_np, channel_axis=2, data_range=1.0, win_size=7)
+
+            total_psnr += psnr
+            total_ssim += ssim
+            count += 1
+
+            loop.set_postfix(loss=loss.item(), psnr=f"{psnr:.2f}", ssim=f"{ssim:.3f}")
+
+        print(f"Epoch [{epoch+1}/{EPOCHS}] Loss: {epoch_loss / len(train_loader):.6f} | "
+              f"Avg PSNR: {total_psnr / count:.2f} | Avg SSIM: {total_ssim / count:.4f}")
 
         # ✅ 모델 저장
         torch.save(model.state_dict(), os.path.join(SAVE_DIR, f"epoch_{epoch+1}.pth"))
 
 if __name__ == '__main__':
     main()
+
+
+
+"""
+입력 해상도: 256×256×C
+
+Encoder 흐름:
+
+L1: 256×256×C
+
+L2: 128×128×2C
+
+L3: 64×64×4C
+
+L4: 32×32×8C
+
+Decoder 흐름:
+
+L3: 64×64×4C
+
+L2: 128×128×2C
+
+L1: 256×256×C
+
+최종 출력: 256×256×C
+
+즉, **입력과 출력은 동일 해상도 (256×256)**이며, encoder는 4단계 downsampling, decoder는 3단계 upsampling 구조입니다.
+
+"""
