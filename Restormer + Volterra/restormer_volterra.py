@@ -1,6 +1,6 @@
 # Volterra 레이어가 attention과 FFN 양쪽에 모두 삽입된 구조
 # E:\MRVNet2D\Restormer + Volterra\restormer_volterra.py
-# restormer_volterra.py
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
