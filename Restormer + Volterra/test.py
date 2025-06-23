@@ -12,12 +12,12 @@ from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
 
 from restormer_volterra import RestormerVolterra
-from rain100l_dataset import Rain100LDataset
-from hide_dataset import HIDEDataset
+from re_dataset.rain100l_dataset import Rain100LDataset
+from re_dataset.hide_dataset import HIDEDataset
 
 # ✅ 설정
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-CHECKPOINT_PATH = r"E:\MRVNet2D\checkpoints\restormer_volterra_all\epoch_59.pth"
+CHECKPOINT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_train_4sets\epoch_45.pth"
 
 # ✅ 데이터 경로
 RAIN100L_DIR = 'E:/restormer+volterra/data/rain100L/test'
