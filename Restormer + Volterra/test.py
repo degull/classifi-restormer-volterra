@@ -17,7 +17,7 @@ from re_dataset.hide_dataset import HIDEDataset
 
 # ✅ 설정
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-CHECKPOINT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_train_4sets\epoch_45.pth"
+CHECKPOINT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_train_4sets\epoch_95.pth"
 
 # ✅ 데이터 경로
 RAIN100L_DIR = 'E:/restormer+volterra/data/rain100L/test'
@@ -70,3 +70,12 @@ with torch.no_grad():
 # ✅ 평균 결과 출력
 print(f"\n✅ Average PSNR: {psnr_total / num_images:.2f} dB")
 print(f"✅ Average SSIM: {ssim_total / num_images:.4f}")
+
+
+"""
+97
+✅ Average PSNR: 28.76 dB
+✅ Average SSIM: 0.8687
+"""
+
+

@@ -2,13 +2,13 @@ import os
 import torch
 import torchvision.transforms as transforms
 import numpy as np
-from PIL import Image
 from tqdm import tqdm
 from torch.utils.data import DataLoader, ConcatDataset
 from torch.cuda.amp import autocast
 from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
 
+from PIL import Image
 from restormer_volterra import RestormerVolterra
 from re_dataset.rain100l_dataset import Rain100LDataset
 from re_dataset.hide_dataset import HIDEDataset
@@ -55,9 +55,9 @@ for epoch in range(START_EPOCH, END_EPOCH + 1):
     num_images = len(test_loader)
 
     with torch.no_grad():
-        for batch in test_loader:
-            distorted = batch['rain'].to(DEVICE)
-            reference = batch['clean'].to(DEVICE)
+        for distorted, reference in tqdm(test_loader, desc=f"Epoch {epoch}"):
+            distorted = distorted.to(DEVICE)
+            reference = reference.to(DEVICE)
 
             with autocast():
                 output = model(distorted)
@@ -79,6 +79,6 @@ for epoch in range(START_EPOCH, END_EPOCH + 1):
     results.append((epoch, avg_psnr, avg_ssim))
     print(f"✅ Epoch {epoch:3d} | PSNR: {avg_psnr:.2f} dB | SSIM: {avg_ssim:.4f}")
 
-# ✅ 정렬하여 최고 성능 모델 출력
+# ✅ 최고 성능 에폭 출력
 best = max(results, key=lambda x: (x[1], x[2]))
 print(f"\n🏆 Best Epoch: {best[0]} | PSNR: {best[1]:.2f} | SSIM: {best[2]:.4f}")
