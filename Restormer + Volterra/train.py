@@ -183,7 +183,7 @@ RAIN100H_DIR = 'E:/restormer+volterra/data/rain100H/train'
 GOPRO_CSV = 'E:/restormer+volterra/data/GOPRO_Large/gopro_train_pairs.csv'
 SIDD_DIR = 'E:/restormer+volterra/data/SIDD'
 SAVE_DIR = 'checkpoints/restormer_volterra_train_4sets'
-CHECKPOINT_PATH = os.path.join(SAVE_DIR, 'epoch_97.pth')
+CHECKPOINT_PATH = os.path.join(SAVE_DIR, 'epoch_98.pth')
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 # ✅ Progressive Learning
@@ -215,7 +215,7 @@ def main():
         print(f"🔁 Loading checkpoint from {CHECKPOINT_PATH}")
         checkpoint = torch.load(CHECKPOINT_PATH, map_location=DEVICE)
         model.load_state_dict(checkpoint)
-        resume_epoch = 97  # 수동 설정 (파일명 기준)
+        resume_epoch = 98  # 수동 설정 (파일명 기준)
 
     criterion = nn.MSELoss()
 
