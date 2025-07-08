@@ -13,25 +13,37 @@ from torch.cuda.amp import autocast
 
 # ✅ 설정
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-CHECKPOINT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_train_4sets\epoch_97.pth"
+CHECKPOINT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_train_4sets\epoch_100.pth"
 
 # ✅ 단일 이미지 경로 (KADID)
-DISTORTED_PATH = r"E:\restormer+volterra\data\tid2013\distorted_images\i01_19_5.bmp"
+""" DISTORTED_PATH = r"E:\restormer+volterra\data\tid2013\distorted_images\i01_19_5.bmp"
 REFERENCE_PATH = r"E:\restormer+volterra\data\tid2013\reference_images\I01.BMP"
-SAVE_PATH = r"E:\restormer+volterra\results\tt.png"
+SAVE_PATH = r"E:\restormer+volterra\results\tt.png" """
 
 
-""" # ✅ 단일 이미지 경로 (HIDE)
-DISTORTED_PATH = r"E:\restormer+volterra\data\HIDE\test\test-close-ups\23fromGOPR0977.png"
-REFERENCE_PATH = r"E:\restormer+volterra\data\HIDE\GT\1fromGOPR0977.png"
-SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_hide.png" """
+# ✅ 단일 이미지 경로 (HIDE)
+DISTORTED_PATH = r"E:\restormer+volterra\data\HIDE\train\12fromGOPR1086.MP4.png"
+REFERENCE_PATH = r"E:\restormer+volterra\data\HIDE\GT\12fromGOPR1086.MP4.png"
+SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_hide.png"
 
 
-""" # ✅ 단일 이미지 경로 (rain100L)
-DISTORTED_PATH = r"E:\restormer+volterra\data\rain100L\test\rain\norain-1.png"
-REFERENCE_PATH = r"E:\restormer+volterra\data\rain100L\test\norain\norain-1.png"
-SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_rain100l.png" """
+# ✅ 단일 이미지 경로 (rain100L)
+""" DISTORTED_PATH = r"E:\restormer+volterra\data\rain100L\test\rain\norain-86.png"
+REFERENCE_PATH = r"E:\restormer+volterra\data\rain100L\test\norain\norain-86.png"
+SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_rain100l_13.png"
+ """
 
+# ✅ 단일 이미지 경로 (CSIQ )
+""" DISTORTED_PATH = r"E:\restormer+volterra\data\CSIQ\dst_imgs\jpeg2000\redwood.jpeg2000.5.png"
+REFERENCE_PATH = r"E:\restormer+volterra\data\CSIQ\src_imgs\redwood.png"
+SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_csiq_jpeg2000.png"
+ """
+
+# ✅ 단일 이미지 경로 (TID )
+""" DISTORTED_PATH = r"E:\restormer+volterra\data\tid2013\distorted_images\i11_19_5.bmp"
+REFERENCE_PATH = r"E:\restormer+volterra\data\tid2013\reference_images\I11.BMP"
+SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_tid.png"
+ """
 
 # ✅ 전처리
 transform = transforms.Compose([

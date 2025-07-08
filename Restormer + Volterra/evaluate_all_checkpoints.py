@@ -103,7 +103,7 @@ from re_dataset.hide_dataset import HIDEDataset
 
 # ✅ 설정
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-CKPT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_train_4sets\epoch_98.pth"
+CKPT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_train_4sets\epoch_97.pth"
 
 # ✅ 테스트셋 경로
 RAIN100L_DIR = 'E:/restormer+volterra/data/rain100L/test'
@@ -134,7 +134,7 @@ total_ssim = 0.0
 num_images = len(test_loader)
 
 with torch.no_grad():
-    for distorted, reference in tqdm(test_loader, desc=f"Evaluating epoch_98.pth"):
+    for distorted, reference in tqdm(test_loader, desc=f"Evaluating epoch_97.pth"):
         distorted = distorted.to(DEVICE)
         reference = reference.to(DEVICE)
 
@@ -156,6 +156,9 @@ with torch.no_grad():
 # ✅ 결과 출력
 avg_psnr = total_psnr / num_images
 avg_ssim = total_ssim / num_images
-print(f"\n✅ [Evaluation Result for epoch_98.pth]")
+print(f"\n✅ [Evaluation Result for epoch_97.pth]")
 print(f"📈 Average PSNR: {avg_psnr:.2f} dB")
 print(f"📊 Average SSIM: {avg_ssim:.4f}")
+
+
+# 🏆 Best Epoch: 100 | PSNR: 28.75 | SSIM: 0.8696
