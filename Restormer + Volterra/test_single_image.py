@@ -1,3 +1,4 @@
+# python ver
 # test_single_image.py
 # Reference (GT) 이미지 | Distorted (왜곡된 입력) 이미지 | Restored (복원 결과) 이미지
 
@@ -15,35 +16,13 @@ from torch.cuda.amp import autocast
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 CHECKPOINT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_train_4sets\epoch_100.pth"
 
-# ✅ 단일 이미지 경로 (KADID)
-""" DISTORTED_PATH = r"E:\restormer+volterra\data\tid2013\distorted_images\i01_19_5.bmp"
-REFERENCE_PATH = r"E:\restormer+volterra\data\tid2013\reference_images\I01.BMP"
-SAVE_PATH = r"E:\restormer+volterra\results\tt.png" """
-
-
-# ✅ 단일 이미지 경로 (HIDE)
-DISTORTED_PATH = r"E:\restormer+volterra\data\HIDE\train\12fromGOPR1086.MP4.png"
-REFERENCE_PATH = r"E:\restormer+volterra\data\HIDE\GT\12fromGOPR1086.MP4.png"
-SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_hide.png"
-
 
 # ✅ 단일 이미지 경로 (rain100L)
-""" DISTORTED_PATH = r"E:\restormer+volterra\data\rain100L\test\rain\norain-86.png"
-REFERENCE_PATH = r"E:\restormer+volterra\data\rain100L\test\norain\norain-86.png"
-SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_rain100l_13.png"
- """
+DISTORTED_PATH = r"E:\restormer+volterra\data\rain100H\test\rain\norain-22.png"
+REFERENCE_PATH = r"E:\restormer+volterra\data\rain100H\test\norain\norain-22.png"
+SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_rain100H_22.png"
 
-# ✅ 단일 이미지 경로 (CSIQ )
-""" DISTORTED_PATH = r"E:\restormer+volterra\data\CSIQ\dst_imgs\jpeg2000\redwood.jpeg2000.5.png"
-REFERENCE_PATH = r"E:\restormer+volterra\data\CSIQ\src_imgs\redwood.png"
-SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_csiq_jpeg2000.png"
- """
 
-# ✅ 단일 이미지 경로 (TID )
-""" DISTORTED_PATH = r"E:\restormer+volterra\data\tid2013\distorted_images\i11_19_5.bmp"
-REFERENCE_PATH = r"E:\restormer+volterra\data\tid2013\reference_images\I11.BMP"
-SAVE_PATH = r"E:\restormer+volterra\results\comparison_output_tid.png"
- """
 
 # ✅ 전처리
 transform = transforms.Compose([
@@ -113,3 +92,103 @@ final_img.paste(restored_labeled, (512, 0))
 final_img.save(SAVE_PATH)
 
 print(f"✅ 라벨 포함 이미지 저장 완료: {SAVE_PATH}")
+
+
+# matlab ver
+""" 
+import os
+import torch
+import torchvision.transforms as T
+from PIL import Image, ImageDraw, ImageFont
+import numpy as np
+import cv2
+from restormer_volterra import RestormerVolterra
+from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+from torch.cuda.amp import autocast
+
+# ─────────────────── 설정 ───────────────────
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+CKPT = r"E:\restormer+volterra\checkpoints\restormer_volterra_train_4sets\epoch_100.pth"
+
+DISTORTED = r"E:\restormer+volterra\data\rain100H\test\rain\norain-22.png"
+REFERENCE  = r"E:\restormer+volterra\data\rain100H\test\norain\norain-22.png"
+SAVE_PATH  = r"E:\restormer+volterra\results\comparison_output_rain100H_22.png"
+
+# ─────────────────── 유틸 ───────────────────
+to_tensor = T.ToTensor()
+
+def pad_to_multiple(x, factor=8):
+    b, c, h, w = x.shape
+    H = (h + factor - 1) // factor * factor
+    W = (w + factor - 1) // factor * factor
+    pad_h, pad_w = H - h, W - w
+    padded = torch.nn.functional.pad(x, (0, pad_w, 0, pad_h), mode="reflect")
+    return padded, h, w  # 원본 크기 반환
+
+def rgb2y(img_rgb):          # RGB float32 0-1 → Y float32 0-255
+    return (0.257 * img_rgb[..., 0] +
+            0.504 * img_rgb[..., 1] +
+            0.098 * img_rgb[..., 2] + 16/255) * 255
+
+def add_label(img, txt):
+    canvas = Image.new("RGB", (img.width, img.height + 24), (255, 255, 255))
+    canvas.paste(img, (0, 24))
+    d = ImageDraw.Draw(canvas)
+    font = ImageFont.load_default()
+    tw = d.textlength(txt, font=font)
+    d.text(((img.width - tw) // 2, 4), txt, fill=(0, 0, 0), font=font)
+    return canvas
+
+# ─────────────────── 데이터 로드 ───────────────────
+dist_pil = Image.open(DISTORTED).convert("RGB")
+ref_pil  = Image.open(REFERENCE).convert("RGB")
+
+dist_t = to_tensor(dist_pil).unsqueeze(0).to(DEVICE)
+ref_t  = to_tensor(ref_pil).unsqueeze(0).to(DEVICE)
+
+# ─────────────────── 모델 ───────────────────
+model = RestormerVolterra().to(DEVICE)
+model.load_state_dict(torch.load(CKPT, map_location=DEVICE))
+model.eval()
+
+# ─────────────────── 추론 ───────────────────
+dist_pad, orig_h, orig_w = pad_to_multiple(dist_t, factor=8)
+
+with torch.no_grad():
+    with autocast():
+        restored_pad = model(dist_pad)
+
+restored_t = restored_pad[:, :, :orig_h, :orig_w]  # crop to original size
+
+# ─────────────────── NumPy & Y 채널 ───────────────────
+ref_np      = ref_t.squeeze(0).cpu().numpy().transpose(1,2,0)
+dist_np     = dist_t.squeeze(0).cpu().numpy().transpose(1,2,0)
+restored_np = restored_t.squeeze(0).cpu().numpy().transpose(1,2,0)
+
+ref_y   = rgb2y(ref_np)
+dist_y  = rgb2y(dist_np)
+rest_y  = rgb2y(restored_np)
+
+# ─────────────────── PSNR / SSIM ───────────────────
+psnr_in  = peak_signal_noise_ratio(ref_y, dist_y, data_range=255)
+ssim_in  = structural_similarity(ref_y, dist_y, data_range=255)
+psnr_out = peak_signal_noise_ratio(ref_y, rest_y, data_range=255)
+ssim_out = structural_similarity(ref_y, rest_y, data_range=255)
+
+print("\n📌 [Y 채널 기준 PSNR / SSIM]")
+print(f"📎 입력  → GT : PSNR {psnr_in:.2f}  SSIM {ssim_in:.4f}")
+print(f"📎 복원결과 → GT: PSNR {psnr_out:.2f}  SSIM {ssim_out:.4f}")
+
+# ─────────────────── 시각화 & 저장 ───────────────────
+ref_img      = Image.fromarray((ref_np      * 255).astype(np.uint8))
+dist_img     = Image.fromarray((dist_np     * 255).astype(np.uint8))
+restored_img = Image.fromarray((np.clip(restored_np,0,1)*255).astype(np.uint8))
+
+final = Image.new("RGB", (ref_img.width*3, ref_img.height+24), (255,255,255))
+final.paste(add_label(ref_img,      "Reference"), (0,0))
+final.paste(add_label(dist_img,     "Distorted"), (ref_img.width,0))
+final.paste(add_label(restored_img, "Restored"),  (ref_img.width*2,0))
+final.save(SAVE_PATH)
+
+print(f"✅ 비교 이미지 저장 완료 → {SAVE_PATH}")
+ """
