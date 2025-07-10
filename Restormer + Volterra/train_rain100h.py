@@ -233,4 +233,4 @@ if __name__ == "__main__":
 # 📘 Epoch  68 | Loss 0.000424 | PSNR 34.29 | SSIM 0.9495
 # 📘 Epoch  69 | Loss 0.000413 | PSNR 34.46 | SSIM 0.9518
 # 📘 Epoch  71 | Loss 0.000399 | PSNR 34.56 | SSIM 0.9538
-# 
+# 📘 Epoch  72 | Loss 0.000355 | PSNR 35.07 | SSIM 0.9573
