@@ -24,7 +24,7 @@ LR         = 2e-4
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ───────────── 데이터·체크포인트 경로 ─────────────
-RAIN100L_TRAIN_DIR = r"E:/restormer+volterra/data/rain100L/train"  # ← Rain100L의 train split만 사용
+RAIN100L_TRAIN_DIR = r"E:/restormer+volterra/data/rain100L/train"
 SAVE_DIR           = r"checkpoints/restormer_volterra_rain100l"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -45,19 +45,17 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scaler    = GradScaler()
 
+    epoch_psnr_list = []
+    epoch_ssim_list = []
+
     for epoch in range(EPOCHS):
         transform = get_transform(epoch)
 
-        # ✅ Rain100L train split 전용 Dataset & DataLoader
         train_ds = Rain100LDataset(root_dir=RAIN100L_TRAIN_DIR, transform=transform)
-        train_dl = DataLoader(train_ds,
-                              batch_size=BATCH_SIZE,
-                              shuffle=True,
-                              num_workers=4,
-                              pin_memory=True)
+        train_dl = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,
+                              num_workers=4, pin_memory=True)
 
-        print(f"[Epoch {epoch+1:3d}] Input size: {transform.transforms[0].size} "
-              f"| Samples: {len(train_ds)}")
+        print(f"[Epoch {epoch+1:3d}] Input size: {transform.transforms[0].size} | Samples: {len(train_ds)}")
 
         model.train()
         epoch_loss = tot_psnr = tot_ssim = 0.0
@@ -73,7 +71,7 @@ def main():
 
             with autocast():
                 output = model(distorted)
-                loss   = criterion(output, reference)
+                loss = criterion(output, reference)
 
             scaler.scale(loss).backward()
             scaler.step(optimizer)
@@ -83,25 +81,34 @@ def main():
 
             ref_np = reference[0].cpu().numpy().transpose(1, 2, 0)
             out_np = output[0].detach().cpu().numpy().transpose(1, 2, 0)
-            psnr   = compute_psnr(ref_np, out_np, data_range=1.0)
-            ssim   = compute_ssim(ref_np, out_np, data_range=1.0,
-                                  channel_axis=2, win_size=7)
+            psnr = compute_psnr(ref_np, out_np, data_range=1.0)
+            ssim = compute_ssim(ref_np, out_np, data_range=1.0,
+                                channel_axis=2, win_size=7)
 
             tot_psnr += psnr
             tot_ssim += ssim
-            count    += 1
+            count += 1
 
-            loop.set_postfix(loss=f"{loss.item():.4f}",
-                             psnr=f"{psnr:.2f}",
-                             ssim=f"{ssim:.3f}")
+            loop.set_postfix(loss=f"{loss.item():.4f}", psnr=f"{psnr:.2f}", ssim=f"{ssim:.3f}")
 
-        print(f"Epoch {epoch+1:3d} | "
-              f"Loss {epoch_loss/len(train_dl):.6f} | "
-              f"PSNR {tot_psnr/count:.2f} | "
-              f"SSIM {tot_ssim/count:.4f}")
+        avg_psnr = tot_psnr / count
+        avg_ssim = tot_ssim / count
 
-        torch.save(model.state_dict(),
-                   os.path.join(SAVE_DIR, f"epoch_{epoch+1}.pth"))
+        epoch_psnr_list.append(avg_psnr)
+        epoch_ssim_list.append(avg_ssim)
+
+        print(f"Epoch {epoch+1:3d} | Loss {epoch_loss/len(train_dl):.6f} | PSNR {avg_psnr:.2f} | SSIM {avg_ssim:.4f}")
+
+        torch.save(model.state_dict(), os.path.join(SAVE_DIR, f"epoch_{epoch+1}.pth"))
+
+    # ───────────── 에포크별 결과 요약 출력 ─────────────
+    print("\n📊 전체 에포크별 PSNR / SSIM 요약:")
+    print("────────────────────────────────────────────")
+    print(f"{'Epoch':>5} | {'PSNR (dB)':>9} | {'SSIM':>6}")
+    print("────────────────────────────────────────────")
+    for i in range(EPOCHS):
+        print(f"{i+1:5d} | {epoch_psnr_list[i]:9.2f} | {epoch_ssim_list[i]:6.4f}")
+    print("────────────────────────────────────────────")
 
 if __name__ == "__main__":
     main()

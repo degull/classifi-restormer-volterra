@@ -151,11 +151,6 @@ L1: 256×256×C
 
 
 
-
-
-
-
-
 # 이어서 학습
 # train.py
 # E:/MRVNet2D/Restormer + Volterra/train.py
