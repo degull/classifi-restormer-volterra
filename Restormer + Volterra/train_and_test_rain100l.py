@@ -138,3 +138,12 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+# ✅ [Epoch  40] Test  PSNR: 33.02 | Test  SSIM: 0.9404
+# ✅ [Epoch  41] Test  PSNR: 32.64 | Test  SSIM: 0.9413
+# ✅ [Epoch  62] Test  PSNR: 33.36 | Test  SSIM: 0.9442
+# ✅ [Epoch  73] Test  PSNR: 34.30 | Test  SSIM: 0.9563
+# ✅ [Epoch  89] Test  PSNR: 34.31 | Test  SSIM: 0.9575
+# ✅ [Epoch 100] Test  PSNR: 34.28 | Test  SSIM: 0.9564
