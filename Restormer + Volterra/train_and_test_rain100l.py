@@ -12,7 +12,7 @@ from skimage.metrics import structural_similarity as compute_ssim
 from PIL import Image
 
 from restormer_volterra import RestormerVolterra
-from re_dataset.rain100h_dataset import Rain100HDataset
+from re_dataset.rain100l_dataset import Rain100LDataset
 
 # ───────────── 설정 ─────────────
 BATCH_SIZE = 2
@@ -20,9 +20,9 @@ EPOCHS     = 100
 LR         = 2e-4
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-TRAIN_DIR  = r"E:/restormer+volterra/data/rain100H/train"
-TEST_DIR   = r"E:/restormer+volterra/data/rain100H/test"
-SAVE_DIR   = r"checkpoints/restormer_volterra_rain100h_joint"
+TRAIN_DIR  = r"E:/restormer+volterra/data/rain100L/train"
+TEST_DIR   = r"E:/restormer+volterra/data/rain100L/test"
+SAVE_DIR   = r"checkpoints/restormer_volterra_rain100l_joint"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 resize_schedule = {0: 128, 30: 192, 60: 256}
@@ -78,12 +78,12 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scaler    = GradScaler()
 
-    print(f"\n[INFO] Training + Evaluation on Rain100H (Train+Test)\n")
+    print(f"\n[INFO] Training + Evaluation on Rain100L (Train+Test)\n")
 
     for epoch in range(EPOCHS):
         transform = get_transform(epoch)
 
-        train_ds = Rain100HDataset(root_dir=TRAIN_DIR, transform=transform)
+        train_ds = Rain100LDataset(root_dir=TRAIN_DIR, transform=transform)
         train_dl = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,
                               num_workers=4, pin_memory=True)
 
@@ -135,8 +135,6 @@ def main():
 
         # ───── 체크포인트 저장 ─────
         torch.save(model.state_dict(), os.path.join(SAVE_DIR, f"epoch_{epoch+1}.pth"))
- 
+
 if __name__ == "__main__":
     main()
-
-# ✅ [Epoch 100] Test  PSNR: 38.83 | Test  SSIM: 0.9794
