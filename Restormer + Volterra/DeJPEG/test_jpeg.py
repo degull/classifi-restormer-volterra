@@ -12,7 +12,7 @@ from restormer_volterra import RestormerVolterra
 
 # ----------------------- Config -----------------------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CKPT = r"E:\restormer+volterra\checkpoints\jpeg_bsds500\epoch_13_ssim0.9948_psnr42.93.pth"
+CKPT = r"E:\restormer+volterra\checkpoints\jpeg_bsds500\epoch_86_ssim0.9994_psnr50.24.pth"
 QUALITY_LEVELS = [10, 20, 30]
 DATA_ROOT = r"E:/restormer+volterra/data"
 SAVE_ROOT = r"E:/restormer+volterra/results"
