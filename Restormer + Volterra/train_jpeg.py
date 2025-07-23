@@ -11,159 +11,106 @@ import scipy.io as sio
 import numpy as np
 from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
+import sys
 
 from restormer_volterra import RestormerVolterra
 
-
+# ----------------------- Config -----------------------
 BATCH_SIZE = 2
 EPOCHS     = 100
 LR         = 2e-4
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-TRAIN_DIR  = r"E:/restormer+volterra/data/BSDS500/images/train"
-GT_TRAIN   = r"E:/restormer+volterra/data/BSDS500/ground_truth/train"
-VAL_DIR    = r"E:/restormer+volterra/data/BSDS500/images/val"
-GT_VAL     = r"E:/restormer+volterra/data/BSDS500/ground_truth/val"
-SAVE_DIR   = r"checkpoints/restormer_volterra_bsds500_jpeg"
+IMG_DIR    = r"E:/restormer+volterra/data/BSDS500/images/train"
+GT_DIR     = r"E:/restormer+volterra/data/BSDS500/ground_truth/train"
+SAVE_DIR   = r"E:/restormer+volterra/checkpoints/jpeg_bsds500"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
+# ----------------------- Dataset -----------------------
+class JPEGDataset(Dataset):
+    def __init__(self, img_dir, gt_dir):
+        self.img_paths = sorted([os.path.join(img_dir, f) for f in os.listdir(img_dir) if f.endswith(".jpg")])
+        self.gt_paths  = sorted([os.path.join(gt_dir, f) for f in os.listdir(gt_dir) if f.endswith(".png") or f.endswith(".bmp")])
 
-resize_schedule = {0: 128, 30: 192, 60: 256}
-
-
-def get_transform(epoch: int):
-    size = max(v for k, v in resize_schedule.items() if epoch >= k)
-    return transforms.Compose([
-        transforms.Resize((size, size), interpolation=transforms.InterpolationMode.BICUBIC),
-        transforms.ToTensor()
-    ])
-
-
-class BSDS500JPEGDataset(Dataset):
-    def __init__(self, image_dir, gt_dir, transform=None):
-        super().__init__()
-        self.image_dir = image_dir
-        self.gt_dir    = gt_dir
-        self.image_files = sorted([f for f in os.listdir(image_dir) if f.endswith(".jpg")])
-        self.transform = transform
+        self.transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.ToTensor()
+        ])
 
     def __len__(self):
-        return len(self.image_files)
+        return len(self.img_paths)
 
     def __getitem__(self, idx):
-        img_name = self.image_files[idx]
-        img_path = os.path.join(self.image_dir, img_name)
-        gt_name  = os.path.splitext(img_name)[0] + ".mat"
-        gt_path  = os.path.join(self.gt_dir, gt_name)
+        img = Image.open(self.img_paths[idx]).convert('RGB')
+        input_tensor = self.transform(img)
 
-        input_img = Image.open(img_path).convert("RGB")
+        gt_path = self.gt_paths[idx].replace(".jpg", ".png")
+        gt_img = Image.open(gt_path).convert('RGB')
+        gt_tensor = self.transform(gt_img)
 
-        gt_mat = sio.loadmat(gt_path)
-        gt_img = gt_mat["groundTruth"][0, 0]["Segmentation"][0, 0]
-        gt_img = gt_img.astype(np.float32) / 255.0
-        gt_img = np.stack([gt_img]*3, axis=-1)
-        gt_img = Image.fromarray((gt_img * 255).astype(np.uint8))
-
-        if self.transform:
-            input_img = self.transform(input_img)
-            gt_img    = self.transform(gt_img)
-
-        return input_img, gt_img
+        return input_tensor, gt_tensor
 
 
-def evaluate(model, val_dir, gt_dir, transform):
-    model.eval()
-    input_files = sorted(os.listdir(val_dir))
-    total_psnr = total_ssim = count = 0
-
-    with torch.no_grad():
-        for fname in input_files:
-            if not fname.endswith(".jpg"):
-                continue
-            input_path = os.path.join(val_dir, fname)
-            gt_path    = os.path.join(gt_dir, os.path.splitext(fname)[0] + ".mat")
-
-            input_img = transform(Image.open(input_path).convert("RGB"))
-            gt_mat    = sio.loadmat(gt_path)
-            gt_img    = gt_mat["groundTruth"][0, 0]["Segmentation"][0, 0]
-            gt_img    = gt_img.astype(np.float32) / 255.0
-            gt_img    = np.stack([gt_img]*3, axis=-1)
-            gt_img    = Image.fromarray((gt_img * 255).astype(np.uint8))
-            gt_img    = transform(gt_img)
-
-            input_img = input_img.unsqueeze(0).to(DEVICE)
-            gt_img    = gt_img.unsqueeze(0).to(DEVICE)
-
-            output = model(input_img)
-
-            out_np = output[0].detach().cpu().numpy().transpose(1, 2, 0)
-            tgt_np = gt_img[0].cpu().numpy().transpose(1, 2, 0)
-
-            psnr = compute_psnr(tgt_np, out_np, data_range=1.0)
-            ssim = compute_ssim(tgt_np, out_np, data_range=1.0, channel_axis=2, win_size=7)
-
-            total_psnr += psnr
-            total_ssim += ssim
-            count += 1
-
-    avg_psnr = total_psnr / count
-    avg_ssim = total_ssim / count
-    return avg_psnr, avg_ssim
-
-
+# ----------------------- Training Function -----------------------
 def main():
-    model     = RestormerVolterra().to(DEVICE)
-    criterion = nn.MSELoss()
+    dataset = JPEGDataset(IMG_DIR, GT_DIR)
+    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)  # DEBUG: num_workers=0
+
+    model = RestormerVolterra().to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=LR)
-    scaler    = GradScaler()
+    scaler = GradScaler()
 
-    print(f"\n[INFO] Training JPEG Artifact Removal (BSDS500)\n")
+    psnr_all = []
+    ssim_all = []
 
-    for epoch in range(EPOCHS):
-        transform = get_transform(epoch)
-
-        train_ds = BSDS500JPEGDataset(image_dir=TRAIN_DIR, gt_dir=GT_TRAIN, transform=transform)
-        train_dl = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,
-                              num_workers=4, pin_memory=True)
-
-        print(f"[Epoch {epoch+1:3d}] Input size: {transform.transforms[0].size} | Train Samples: {len(train_ds)}")
-
+    for epoch in range(1, EPOCHS + 1):
         model.train()
-        epoch_loss = 0.0
-        count = 0
+        total_psnr, total_ssim = 0.0, 0.0
+        start_time = torch.cuda.Event(enable_timing=True)
+        end_time = torch.cuda.Event(enable_timing=True)
+        start_time.record()
 
-        loop = tqdm(train_dl, desc=f"Training Epoch {epoch+1}/{EPOCHS}", leave=False)
+        loop = tqdm(dataloader, desc=f"Epoch [{epoch}/{EPOCHS}]", leave=False)
+        for inputs, targets in loop:
+            inputs = inputs.to(DEVICE)
+            targets = targets.to(DEVICE)
 
-        for distorted, reference in loop:
-            distorted = distorted.to(DEVICE)
-            reference = reference.to(DEVICE)
-
-            optimizer.zero_grad(set_to_none=True)
-
-            with autocast(device_type='cuda'):
-                output = model(distorted)
-                loss = criterion(output, reference)
+            optimizer.zero_grad()
+            with autocast(device_type=DEVICE.type):
+                outputs = model(inputs)
+                loss = nn.functional.l1_loss(outputs, targets)
 
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
 
-            epoch_loss += loss.item()
-            count += 1
+            outputs = outputs.clamp(0, 1).detach().cpu().numpy()
+            targets = targets.cpu().numpy()
 
-            loop.set_postfix(loss=f"{loss.item():.4f}")
+            for out, gt in zip(outputs, targets):
+                out = np.transpose(out, (1, 2, 0))
+                gt = np.transpose(gt, (1, 2, 0))
+                total_psnr += compute_psnr(gt, out, data_range=1.0)
+                total_ssim += compute_ssim(gt, out, data_range=1.0, channel_axis=-1)
 
-        avg_loss = epoch_loss / len(train_dl)
-        print(f"[Epoch {epoch+1:3d}] Train Loss: {avg_loss:.6f}")
+        avg_psnr = total_psnr / len(dataset)
+        avg_ssim = total_ssim / len(dataset)
+        psnr_all.append(avg_psnr)
+        ssim_all.append(avg_ssim)
 
-        # --- Evaluate to get PSNR/SSIM for checkpoint filename ---
-        test_psnr, test_ssim = evaluate(model, VAL_DIR, GT_VAL, transform)
-        print(f"✅ [Epoch {epoch+1:3d}] Test  PSNR: {test_psnr:.2f} | Test  SSIM: {test_ssim:.4f}")
+        end_time.record()
+        torch.cuda.synchronize()
+        elapsed = start_time.elapsed_time(end_time) / 1000.0  # seconds
 
-        # --- Save with PSNR / SSIM in filename ---
-        save_name = f"epoch_{epoch+1}_ssim{test_ssim:.4f}_psnr{test_psnr:.2f}.pth"
-        torch.save(model.state_dict(), os.path.join(SAVE_DIR, save_name))
+        print(f"[Epoch {epoch:03d}] PSNR: {avg_psnr:.2f}  SSIM: {avg_ssim:.4f}  Time: {elapsed:.1f}s")
 
+        ckpt_name = f"epoch_{epoch}_ssim{avg_ssim:.4f}_psnr{avg_psnr:.2f}.pth"
+        torch.save(model.state_dict(), os.path.join(SAVE_DIR, ckpt_name))
 
-if __name__ == "__main__":
+    print("\n==== Final Summary ====")
+    for i, (p, s) in enumerate(zip(psnr_all, ssim_all), 1):
+        print(f"Epoch {i:03d}: PSNR={p:.2f}, SSIM={s:.4f}")
+
+# ----------------------- Entry -----------------------
+if __name__ == '__main__':
     main()
