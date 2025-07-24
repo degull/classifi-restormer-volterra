@@ -213,7 +213,7 @@ if __name__ == '__main__':
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from volterra_layer import VolterraLayer2D
+from .volterra_layer import VolterraLayer2D
 
 # ✅ LayerNorm 정의
 class BiasFreeLayerNorm(nn.Module):

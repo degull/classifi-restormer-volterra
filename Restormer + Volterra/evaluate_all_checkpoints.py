@@ -97,7 +97,7 @@ from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
 from PIL import Image
 
-from restormer_volterra import RestormerVolterra
+from models.restormer_volterra import RestormerVolterra
 from re_dataset.rain100l_dataset import Rain100LDataset
 from re_dataset.hide_dataset import HIDEDataset
 

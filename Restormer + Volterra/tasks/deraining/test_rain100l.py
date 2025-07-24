@@ -1,10 +1,17 @@
 import os
+import sys
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# ✅ models 위치 (Restormer + Volterra 폴더)
+sys.path.append(os.path.abspath(os.path.join(current_dir, '..', '..')))
+
 import torch
 from torchvision import transforms
 from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
-from restormer_volterra import RestormerVolterra
+from models.restormer_volterra import RestormerVolterra
 
 
 DEVICE   = torch.device("cuda" if torch.cuda.is_available() else "cpu")

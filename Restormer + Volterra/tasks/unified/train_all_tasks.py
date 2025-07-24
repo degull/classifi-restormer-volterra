@@ -1,4 +1,8 @@
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,19 +16,18 @@ from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
 from torch.amp import autocast, GradScaler
 
-from restormer_volterra import RestormerVolterra
-
+from models.restormer_volterra import RestormerVolterra
 
 # ---------------------- Dataset Templates ----------------------
 class PairedFolderDataset(Dataset):
     def __init__(self, input_dir, target_dir, transform):
         self.input_paths = sorted([
             os.path.join(input_dir, f) for f in os.listdir(input_dir)
-            if f.lower().endswith((".jpg", ".png"))
+            if f.lower().endswith((".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"))
         ])
         self.target_paths = sorted([
             os.path.join(target_dir, f) for f in os.listdir(target_dir)
-            if f.lower().endswith((".jpg", ".png"))
+            if f.lower().endswith((".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"))
         ])
         self.transform = transform
 
@@ -35,7 +38,6 @@ class PairedFolderDataset(Dataset):
         inp = Image.open(self.input_paths[idx]).convert("RGB")
         tgt = Image.open(self.target_paths[idx]).convert("RGB")
         return self.transform(inp), self.transform(tgt)
-
 
 class PairedCSVDataset(Dataset):
     def __init__(self, csv_path, transform):
@@ -52,17 +54,16 @@ class PairedCSVDataset(Dataset):
         tgt = Image.open(tgt_path).convert("RGB")
         return self.transform(inp), self.transform(tgt)
 
-
 # ---------------------- Config ----------------------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 4
-EPOCHS = 100
+TOTAL_EPOCHS = 100
 LR = 2e-4
 SAVE_DIR = r"E:/restormer+volterra/checkpoints/all_tasks"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
+START_EPOCH = 0  # 새로 학습 시작
 resize_schedule = {0: 128, 30: 192, 60: 256}
-
 
 def get_transform(epoch):
     size = max(v for k, v in resize_schedule.items() if epoch >= k)
@@ -71,47 +72,62 @@ def get_transform(epoch):
         transforms.ToTensor()
     ])
 
-
 # ---------------------- Dataset Loaders ----------------------
 def get_all_datasets(transform):
     datasets = []
 
-    datasets.append(PairedFolderDataset(
+    print("\n📦 Preparing datasets...")
+
+    rain100h = PairedFolderDataset(
         input_dir=r"E:/restormer+volterra/data/rain100H/train/rain",
         target_dir=r"E:/restormer+volterra/data/rain100H/train/norain",
         transform=transform
-    ))
+    )
+    print(f"Rain100H      : {len(rain100h)} samples")
+    datasets.append(rain100h)
 
-    datasets.append(PairedFolderDataset(
+    rain100l = PairedFolderDataset(
         input_dir=r"E:/restormer+volterra/data/rain100L/train/rain",
         target_dir=r"E:/restormer+volterra/data/rain100L/train/norain",
         transform=transform
-    ))
+    )
+    print(f"Rain100L      : {len(rain100l)} samples")
+    datasets.append(rain100l)
 
-    datasets.append(PairedCSVDataset(
+    gopro = PairedCSVDataset(
         csv_path=r"E:/restormer+volterra/data/GOPRO_Large/gopro_train_pairs.csv",
         transform=transform
-    ))
+    )
+    print(f"GoPro         : {len(gopro)} samples")
+    datasets.append(gopro)
 
-    datasets.append(PairedCSVDataset(
+    sidd = PairedCSVDataset(
         csv_path=r"E:/restormer+volterra/data/SIDD/sidd_pairs.csv",
         transform=transform
-    ))
+    )
+    print(f"SIDD          : {len(sidd)} samples")
+    datasets.append(sidd)
 
-    datasets.append(PairedFolderDataset(
+    csd = PairedFolderDataset(
         input_dir=r"E:/restormer+volterra/data/CSD/Train/Snow",
         target_dir=r"E:/restormer+volterra/data/CSD/Train/Gt",
         transform=transform
-    ))
+    )
+    print(f"CSD           : {len(csd)} samples")
+    datasets.append(csd)
 
-    datasets.append(PairedFolderDataset(
+    bsds = PairedFolderDataset(
         input_dir=r"E:/restormer+volterra/data/BSDS500/images/train",
         target_dir=r"E:/restormer+volterra/data/BSDS500/ground_truth/train",
         transform=transform
-    ))
+    )
+    print(f"BSDS500 JPEG  : {len(bsds)} samples")
+    datasets.append(bsds)
+
+    total = sum(len(d) for d in datasets)
+    print(f"📊 Total training samples: {total} images\n")
 
     return ConcatDataset(datasets)
-
 
 # ---------------------- Training Loop ----------------------
 def train_all_tasks():
@@ -120,15 +136,15 @@ def train_all_tasks():
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scaler = GradScaler()
 
-    print("\n✅ Starting Unified Multi-Task Training\n")
-    for epoch in range(EPOCHS):
+    print("\n🚀 Starting Unified Multi-Task Training from scratch\n")
+    for epoch in range(START_EPOCH, TOTAL_EPOCHS):
         transform = get_transform(epoch)
         dataset = get_all_datasets(transform)
         dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True)
 
         model.train()
         total_loss = total_psnr = total_ssim = count = 0
-        loop = tqdm(dataloader, desc=f"[Epoch {epoch+1}/{EPOCHS}]", leave=False)
+        loop = tqdm(dataloader, desc=f"[Epoch {epoch+1}/{TOTAL_EPOCHS}]", leave=False)
 
         for inputs, targets in loop:
             inputs = inputs.to(DEVICE)
@@ -162,6 +178,7 @@ def train_all_tasks():
         ckpt_name = f"epoch_{epoch+1}_ssim{avg_ssim:.4f}_psnr{avg_psnr:.2f}.pth"
         torch.save(model.state_dict(), os.path.join(SAVE_DIR, ckpt_name))
 
-
 if __name__ == "__main__":
     train_all_tasks()
+
+

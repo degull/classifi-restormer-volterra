@@ -1,4 +1,14 @@
 import os
+import sys
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# ✅ models 위치 (Restormer + Volterra 폴더)
+sys.path.append(os.path.abspath(os.path.join(current_dir, '..', '..')))
+
+# ✅ re_dataset 위치 (restormer+volterra 루트 폴더)
+sys.path.append(os.path.abspath(os.path.join(current_dir, '..', '..', '..')))
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,8 +20,8 @@ from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
 
-from restormer_volterra import RestormerVolterra
-from re_dataset.rain100l_dataset import Rain100LDataset
+from models.restormer_volterra import RestormerVolterra
+from re_dataset.rain100h_dataset import Rain100HDataset
 
 
 BATCH_SIZE = 2
@@ -19,9 +29,9 @@ EPOCHS     = 100
 LR         = 2e-4
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-TRAIN_DIR  = r"E:/restormer+volterra/data/rain100L/train"
-TEST_DIR   = r"E:/restormer+volterra/data/rain100L/test"
-SAVE_DIR   = r"checkpoints/restormer_volterra_rain100l_jointtt"
+TRAIN_DIR  = r"E:/restormer+volterra/data/rain100H/train"
+TEST_DIR   = r"E:/restormer+volterra/data/rain100H/test"
+SAVE_DIR   = r"checkpoints/restormer_volterra_rain100H_jointt555t"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 resize_schedule = {0: 128, 30: 192, 60: 256}
@@ -79,12 +89,12 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scaler    = GradScaler()
 
-    print(f"\n[INFO] Training Rain100L Only (Save with SSIM+PSNR)\n")
+    print(f"\n[INFO] Training Rain100H Only (Save with SSIM+PSNR)\n")
 
     for epoch in range(EPOCHS):
         transform = get_transform(epoch)
 
-        train_ds = Rain100LDataset(root_dir=TRAIN_DIR, transform=transform)
+        train_ds = Rain100HDataset(root_dir=TRAIN_DIR, transform=transform)
         train_dl = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,
                               num_workers=4, pin_memory=True)
 
