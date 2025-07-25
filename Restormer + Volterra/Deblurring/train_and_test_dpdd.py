@@ -1,3 +1,4 @@
+# train_and_test_dpdd.py
 import os
 import torch
 import torch.nn as nn
@@ -10,7 +11,7 @@ import numpy as np
 from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
 from torch.amp import autocast, GradScaler
-from restormer_volterra import RestormerVolterra
+from models.restormer_volterra import RestormerVolterra
 
 
 # -------- Dataset --------

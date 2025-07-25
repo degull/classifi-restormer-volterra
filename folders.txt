@@ -1,0 +1,25 @@
+tasks/
+├── deraining/
+│   ├── train_rain100h.py
+│   ├── train_rain100l.py
+│   ├── train_rain100p.py
+│   └── test_rain100l.py         # 기존의 test_derain.py → 테스트 대상 명시
+│
+├── desnowing/
+│   ├── train_csnow.py           # 기존 train_desnow.py → 데이터셋 이름 기반
+│   └── test_csnow.py
+│
+├── deblurring/
+│   ├── train_gopro.py
+│   ├── test_hide.py
+│   └── test_gopro.py
+│
+├── denoising/
+│   └── train_sidd.py
+│
+├── dejpeg/
+│   ├── train_bsds500.py
+│   └── test_live1.py
+│
+└── unified/
+    └── train_all_tasks.py
