@@ -1,3 +1,7 @@
+# Train : Deraining + Deblurring + Denoising + Desnowing + JPEG
+# Test : Deraining + Deblurring + Denoising + Desnowing + JPEG
+# 01_train_all_tasks.py
+
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -59,7 +63,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 4
 TOTAL_EPOCHS = 100
 LR = 2e-4
-SAVE_DIR = r"E:/restormer+volterra/checkpoints/all_tasks"
+SAVE_DIR = r"E:/restormer+volterra/checkpoints/#01_all_tasks"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 START_EPOCH = 0  # 새로 학습 시작

@@ -51,7 +51,13 @@ class PairedFolderDataset(Dataset):
 class PairedCSVDataset(Dataset):
     def __init__(self, csv_path, transform):
         df = pd.read_csv(csv_path)
-        self.paths = df.values.tolist()
+
+        # ✅ 열 이름이 'dist_img', 'ref_img'인 경우 처리
+        if 'dist_img' in df.columns and 'ref_img' in df.columns:
+            self.paths = df[['dist_img', 'ref_img']].values.tolist()
+        else:
+            self.paths = df.values.tolist()
+
         self.transform = transform
 
     def __len__(self):
@@ -62,6 +68,7 @@ class PairedCSVDataset(Dataset):
         inp = Image.open(inp_path).convert("RGB")
         tgt = Image.open(tgt_path).convert("RGB")
         return self.transform(inp), self.transform(tgt)
+
 
 
 def evaluate(model, dataloader, name):
