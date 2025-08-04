@@ -46,7 +46,7 @@ class GDFN(nn.Module):
         x = self.project_out(x)
         return x
 
-# ✅ MDTA: 멀티 헤드 디플로이드 트랜스포머 어텐션
+# ✅ MDTA
 class MDTA(nn.Module):
     def __init__(self, dim, num_heads, bias):
         super().__init__()
@@ -105,6 +105,7 @@ class Decoder(nn.Module):
         return self.body(x)
 
 # ✅ 다운샘플: 2배 해상도 축소 + 채널 2배 증가
+#  정보 요약/압축 필요해서 pixelshuffle 사용 x → conv(stride=2) 사용
 class Downsample(nn.Module):
     def __init__(self, in_channels):
         super().__init__()
