@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .volterra_layer import VolterraLayer2D  # ✅ 사용자 정의 Volterra Layer
+from .volterra_layer import VolterraLayer2D
 
-# ✅ LayerNorm 정의 (Bias-Free와 With-Bias 버전 모두 지원)
+
+# ---------------- LayerNorm ---------------- #
 class BiasFreeLayerNorm(nn.Module):
     def __init__(self, normalized_shape):
         super().__init__()
@@ -29,7 +30,8 @@ class WithBiasLayerNorm(nn.Module):
 def LayerNorm(normalized_shape, bias=False):
     return WithBiasLayerNorm(normalized_shape) if bias else BiasFreeLayerNorm(normalized_shape)
 
-# ✅ GDFN: 비선형 FFN 구조
+
+# ---------------- GDFN ---------------- #
 class GDFN(nn.Module):
     def __init__(self, dim, expansion_factor, bias):
         super().__init__()
@@ -46,7 +48,8 @@ class GDFN(nn.Module):
         x = self.project_out(x)
         return x
 
-# ✅ MDTA
+
+# ---------------- MDTA ---------------- #
 class MDTA(nn.Module):
     def __init__(self, dim, num_heads, bias):
         super().__init__()
@@ -70,7 +73,8 @@ class MDTA(nn.Module):
         out = (attn @ v).reshape(b, c, h, w)
         return self.project_out(out)
 
-# ✅ 트랜스포머 블록 = LayerNorm → Attention → Volterra + FFN → Volterra
+
+# ---------------- Transformer Block ---------------- #
 class TransformerBlock(nn.Module):
     def __init__(self, dim, num_heads, ffn_expansion_factor, bias, LayerNorm_type, volterra_rank):
         super().__init__()
@@ -87,7 +91,8 @@ class TransformerBlock(nn.Module):
         x = x + self.volterra2(self.ffn(self.norm2(x)))
         return x
 
-# ✅ 인코더 / 디코더 정의 (TransformerBlock 반복)
+
+# ---------------- Encoder / Decoder ---------------- #
 class Encoder(nn.Module):
     def __init__(self, dim, depth, **kwargs):
         super().__init__()
@@ -104,42 +109,38 @@ class Decoder(nn.Module):
     def forward(self, x):
         return self.body(x)
 
-# ✅ 다운샘플: 2배 해상도 축소 + 채널 2배 증가
-#  정보 요약/압축 필요해서 pixelshuffle 사용 x → conv(stride=2) 사용
+
+# ---------------- Downsample / Upsample ---------------- #
 class Downsample(nn.Module):
     def __init__(self, in_channels):
         super().__init__()
-        # Conv2d(kernel=3, stride=2) : 1/2로 축소(해상도) & 2배 증가(출력 채널 수)
-        
         self.body = nn.Conv2d(in_channels, in_channels * 2, kernel_size=3, stride=2, padding=1)
 
     def forward(self, x):
         return self.body(x)
 
-# ✅ 업샘플: PixelShuffle로 2배 해상도 증가 + 채널 수 1/2 감소
 class Upsample(nn.Module):
-    def __init__(self, in_channels):
+    def __init__(self, in_channels, out_channels):
         super().__init__()
-        # Conv2d → PixelShuffle(scale=2) : 2배 확대 (해상도) & 1/2로 감소(출력 채널 수)
         self.body = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels * 2, kernel_size=1),
-            nn.PixelShuffle(2)
+            nn.Conv2d(in_channels, out_channels * 4, kernel_size=1),
+            #nn.Conv2d(4C, 2C x 4, kernel_size=1)
+            nn.PixelShuffle(2) # 1개의 채널을 2x2 패치로 쪼개서 해상도 2배 증가 & 채널 4배 감소
         )
 
     def forward(self, x):
         return self.body(x)
 
-# ✅ 전체 Restormer + Volterra 모델
+
+# ---------------- Restormer + Volterra ---------------- #
 class RestormerVolterra(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, dim=48, num_blocks=[4,6,6,8],
                  num_refinement_blocks=4, heads=[1,2,4,8], ffn_expansion_factor=2.66,
                  bias=False, LayerNorm_type='WithBias', volterra_rank=4):
         super().__init__()
 
-        # Initial 3×3 Conv ➜ F₀
         self.patch_embed = nn.Conv2d(in_channels, dim, kernel_size=3, padding=1)
 
-        # ===== Encoder path =====
         self.encoder1 = Encoder(dim, num_blocks[0], num_heads=heads[0], ffn_expansion_factor=ffn_expansion_factor,
                                 bias=bias, LayerNorm_type=LayerNorm_type, volterra_rank=volterra_rank)
         self.down1 = Downsample(dim)
@@ -155,24 +156,21 @@ class RestormerVolterra(nn.Module):
         self.latent = Encoder(dim*8, num_blocks[3], num_heads=heads[3], ffn_expansion_factor=ffn_expansion_factor,
                               bias=bias, LayerNorm_type=LayerNorm_type, volterra_rank=volterra_rank)
 
-        # ===== Decoder path =====
-        self.up3 = Upsample(dim*8)
+        self.up3 = Upsample(dim*8, dim*4)   # # 32×32×8C → 64×64×4C
         self.decoder3 = Decoder(dim*4, num_blocks[2], num_heads=heads[2], ffn_expansion_factor=ffn_expansion_factor,
                                 bias=bias, LayerNorm_type=LayerNorm_type, volterra_rank=volterra_rank)
 
-        self.up2 = Upsample(dim*4)
+        self.up2 = Upsample(dim*4, dim*2)   # # 64×64×4C → 128×128×2C
         self.decoder2 = Decoder(dim*2, num_blocks[1], num_heads=heads[1], ffn_expansion_factor=ffn_expansion_factor,
                                 bias=bias, LayerNorm_type=LayerNorm_type, volterra_rank=volterra_rank)
 
-        self.up1 = Upsample(dim*2)
+        self.up1 = Upsample(dim*2, dim)     # # 128×128×2C → 256×256×C
         self.decoder1 = Decoder(dim, num_blocks[0], num_heads=heads[0], ffn_expansion_factor=ffn_expansion_factor,
                                 bias=bias, LayerNorm_type=LayerNorm_type, volterra_rank=volterra_rank)
 
-        # Refinement block (on top of xL₁)
         self.refinement = Encoder(dim, num_refinement_blocks, num_heads=heads[0], ffn_expansion_factor=ffn_expansion_factor,
                                   bias=bias, LayerNorm_type=LayerNorm_type, volterra_rank=volterra_rank)
 
-        # Final Conv to produce restored image
         self.output = nn.Conv2d(dim, out_channels, kernel_size=3, padding=1)
 
     def _pad_and_add(self, up_tensor, skip_tensor):
@@ -181,26 +179,26 @@ class RestormerVolterra(nn.Module):
         return up_tensor + skip_tensor
 
     def forward(self, x):
-        x1 = self.patch_embed(x)                   # ➜ F₀
+        x1 = self.patch_embed(x)
         x2 = self.encoder1(x1)
         x3 = self.encoder2(self.down1(x2))
         x4 = self.encoder3(self.down2(x3))
-        x5 = self.latent(self.down3(x4))           # ➜ Latent (lowest)
-
+        x5 = self.latent(self.down3(x4))
         x6 = self.decoder3(self._pad_and_add(self.up3(x5), x4))
         x7 = self.decoder2(self._pad_and_add(self.up2(x6), x3))
         x8 = self.decoder1(self._pad_and_add(self.up1(x7), x2))
-
-        x9 = self.refinement(x8)                   # ➜ Fᵣ
-        out = self.output(x9 + x1)                 # ➜ Final output: Conv(F₀ + Fᵣ)
+        x9 = self.refinement(x8)
+        out = self.output(x9 + x1)
         return out
 
-# ✅ 테스트용 샘플 입력
+
+# ✅ 테스트
 if __name__ == '__main__':
     model = RestormerVolterra()
     dummy = torch.randn(1, 3, 321, 481)
     out = model(dummy)
     print(out.shape)
+
 
 
 """ # Volterra 레이어가 attention과 FFN 양쪽에 모두 삽입된 구조
