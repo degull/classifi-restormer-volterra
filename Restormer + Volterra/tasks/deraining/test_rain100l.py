@@ -16,7 +16,7 @@ from models.restormer_volterra import RestormerVolterra
 
 DEVICE   = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 TEST_DIR = r"E:/restormer+volterra/data/rain100L/test"
-CKPT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_rain100l_jointtt\epoch_91_ssim0.9538_psnr33.98.pth"
+CKPT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_csd\epoch_5_ssim0.9531_psnr33.03.pth"
 
 
 def get_transform():
