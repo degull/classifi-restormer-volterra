@@ -22,7 +22,7 @@ PAIRS_TXT  = os.path.join(BASE_DIR, "pairs_impulse.txt")
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ✅ 평가할 체크포인트 경로로 바꿔주세요
-CKPT = r"E:/restormer+volterra/checkpoints/kadid_impulse_noise/epoch_100_valssim0.9450_valpsnr35.20.pth"
+CKPT = r"E:\restormer+volterra\checkpoints\kadid_impulse_noise\epoch_58_valssim0.9185_valpsnr35.41.pth"
 
 # ---------------- Split Utils (train과 동일 로직) ----------------
 def read_pairs_txt(base_dir: str, txt_path: str) -> List[Tuple[str, str]]:

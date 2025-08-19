@@ -66,8 +66,8 @@ def evaluate(model, dataloader, device):
 def main():
     TEST_SNOW_DIR = r"E:/restormer+volterra/data/CSD/Test/Snow"
     TEST_GT_DIR   = r"E:/restormer+volterra/data/CSD/Test/Gt"
-    #CKPT_PATH     = r"E:\restormer+volterra\checkpoints\restormer_volterra_rain100l\epoch_91_ssim0.9538_psnr33.98.pth"
-    CKPT_PATH     = r"E:\restormer+volterra\checkpoints\restormer_volterra_rain100h\epoch_100.pth"
+    CKPT_PATH     = r"E:\restormer+volterra\checkpoints\restormer_volterra_rain100l\epoch_91_ssim0.9538_psnr33.98.pth"
+    # CKPT_PATH     = r"E:\restormer+volterra\checkpoints\restormer_volterra_rain100h\epoch_100.pth"
 
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

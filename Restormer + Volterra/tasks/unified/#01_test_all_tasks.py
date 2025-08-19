@@ -99,7 +99,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = RestormerVolterra().to(device)
 
-    checkpoint = r"E:\restormer+volterra\checkpoints\#01_all_tasks_balanced\epoch_96_ssim0.9309_psnr35.19.pth"
+    checkpoint = r"E:\restormer+volterra\checkpoints\#01_all_tasks_balanced_160\epoch_100_ssim0.9177_psnr32.58.pth"
     model.load_state_dict(torch.load(checkpoint, map_location=device))
     print(f"\n✅ Loaded checkpoint from {checkpoint}\n")
 
@@ -123,15 +123,6 @@ if __name__ == "__main__":
         "CSD": PairedFolderDataset(
             r"E:/restormer+volterra/data/CSD/Test/Snow",
             r"E:/restormer+volterra/data/CSD/Test/Gt", transform),
-        "BSD500": PairedFolderDataset(
-            r"E:/restormer+volterra/data/BSD500/gray/qf_10",
-            r"E:/restormer+volterra/data/BSD500/refimgs", transform),
-        "Classic5": PairedFolderDataset(
-            r"E:/restormer+volterra/data/classic5/gray/qf_10",
-            r"E:/restormer+volterra/data/classic5/refimgs", transform),
-        "LIVE1": PairedFolderDataset(
-            r"E:/restormer+volterra/data/live1/gray/qf_10",
-            r"E:/restormer+volterra/data/live1/refimgs", transform),
     }
 
     for name, dataset in test_sets.items():

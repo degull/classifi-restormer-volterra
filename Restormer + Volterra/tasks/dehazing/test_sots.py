@@ -24,7 +24,7 @@ RESULT_DIR = r"E:/restormer+volterra/results/sots"   # ✅ 복원 이미지 저�
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # TODO: 여기를 네 체크포인트 경로로 변경
-CKPT = r"E:\restormer+volterra\checkpoints\sots_volterra\epoch_1_valssim0.8066_valpsnr20.16.pth"
+CKPT = r"E:\restormer+volterra\checkpoints\sots_volterra\epoch_84_valssim0.9567_valpsnr26.75.pth"
 
 os.makedirs(RESULT_DIR, exist_ok=True)
 
