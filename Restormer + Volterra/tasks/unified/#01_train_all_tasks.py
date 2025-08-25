@@ -1,4 +1,4 @@
-""" import os
+import os
 import sys
 import torch
 import torch.nn as nn
@@ -206,11 +206,11 @@ def train_all_tasks():
 
 # ------------------ 실행 ------------------
 if __name__ == "__main__":
-    train_all_tasks() """
+    train_all_tasks()
 
 
 # 이어서 학습
-import os
+""" import os
 import sys
 import torch
 import torch.nn as nn
@@ -434,3 +434,4 @@ def train_all_tasks():
 # ------------------ 실행 ------------------
 if __name__ == "__main__":
     train_all_tasks()
+ """
