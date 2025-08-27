@@ -23,7 +23,6 @@ SPLIT_DIR  = os.path.join(BASE_DIR, "splits")
 RESULT_DIR = r"E:/restormer+volterra/results/sots"   # ✅ 복원 이미지 저장 루트
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# TODO: 여기를 네 체크포인트 경로로 변경
 CKPT = r"E:\restormer+volterra\checkpoints\sots_volterra\epoch_84_valssim0.9567_valpsnr26.75.pth"
 
 os.makedirs(RESULT_DIR, exist_ok=True)
@@ -166,14 +165,7 @@ if __name__ == "__main__":
 
 # 다른 데이터셋으로 test
 
-# E:/restormer+volterra/Restormer + Volterra/tasks/dehazing/multi_test_all.py
-import os, sys, csv
-from typing import List, Tuple
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-# models 폴더 접근 (RestormerVolterra import용)
-sys.path.append(os.path.abspath(os.path.join(current_dir, '..', '..')))
-
+import os, sys, glob
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
@@ -182,42 +174,42 @@ from tqdm import tqdm
 import numpy as np
 from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
-from glob import glob
+
+# ✅ 모델 import
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.abspath(os.path.join(current_dir, '..', '..')))
 from models.restormer_volterra import RestormerVolterra
 
-# ---------------- Paths ----------------
-RESULT_DIR = r"E:/restormer+volterra/results/unified_test"
-DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CKPT = r"E:\restormer+volterra\checkpoints\sots_volterra\epoch_77_valssim0.9580_valpsnr26.83.pth"
-
-os.makedirs(RESULT_DIR, exist_ok=True)
 
 # ---------------- Dataset ----------------
-ALLOWED_EXT = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
+class HIDEFolderDataset(Dataset):
+    """
+    HIDE/test/ 의 하위폴더(test-close-ups, test-long-shot) 포함
+    GT는 HIDE/GT 에서 파일명 동일 매칭
+    """
+    def __init__(self, test_root, gt_root, transform):
+        self.input_paths = sorted(glob.glob(os.path.join(test_root, "**", "*.*"), recursive=True))
+        valid_ext = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
+        self.input_paths = [f for f in self.input_paths if f.lower().endswith(valid_ext)]
 
-class PairedFolderDataset(Dataset):
-    def __init__(self, input_dir, target_dir, transform):
-        self.input_paths = sorted(glob(os.path.join(input_dir, "*")))
-        self.input_paths = [f for f in self.input_paths if f.lower().endswith(ALLOWED_EXT)]
-
-        gt_files = {os.path.splitext(f)[0]: os.path.join(target_dir, f)
-                    for f in os.listdir(target_dir)
-                    if f.lower().endswith(ALLOWED_EXT)}
+        # GT 매핑 dict
+        gt_files = {os.path.splitext(f)[0]: os.path.join(gt_root, f)
+                    for f in os.listdir(gt_root)
+                    if f.lower().endswith(valid_ext)}
 
         self.target_paths = []
         self.names = []
 
         for inp_path in self.input_paths:
             base = os.path.splitext(os.path.basename(inp_path))[0]
-            # 🔑 hazy 이름에서 "_숫자" 제거 (예: 1400_1 -> 1400)
-            base_simple = base.split("_")[0]
-            if base_simple in gt_files:
-                self.target_paths.append(gt_files[base_simple])
+            if base in gt_files:
+                self.target_paths.append(gt_files[base])
                 self.names.append(os.path.basename(inp_path))
             else:
-                raise FileNotFoundError(f"GT 매칭 실패: {inp_path} → {base_simple}")
+                print(f"[⚠️ Warning] GT 없음 → {inp_path}")
 
         self.transform = transform
+
         assert len(self.input_paths) == len(self.target_paths), \
             f"Mismatched input and GT lengths: {len(self.input_paths)} vs {len(self.target_paths)}"
 
@@ -226,50 +218,9 @@ class PairedFolderDataset(Dataset):
     def __getitem__(self, idx):
         inp = Image.open(self.input_paths[idx]).convert("RGB")
         tgt = Image.open(self.target_paths[idx]).convert("RGB")
-        name = os.path.basename(self.input_paths[idx])
-        return self.transform(inp), self.transform(tgt), name
+        return self.transform(inp), self.transform(tgt), self.names[idx]
 
-    
 
-class PairedCSVDataset(Dataset):
-    def __init__(self, csv_path, transform):
-        import pandas as pd
-        self.df = pd.read_csv(csv_path)
-        self.transform = transform
-    def __len__(self):
-        return len(self.df)
-    def __getitem__(self, idx):
-        x = Image.open(self.df.iloc[idx, 0]).convert("RGB")
-        y = Image.open(self.df.iloc[idx, 1]).convert("RGB")
-        return self.transform(x), self.transform(y), os.path.basename(self.df.iloc[idx, 0])
-
-class PairedListDataset(Dataset):
-    def __init__(self, list_path, transform):
-        self.transform = transform
-        self.pairs = []
-        base_dir = os.path.dirname(list_path)
-        with open(list_path, "r", encoding="utf-8") as f:
-            for ln in f:
-                ln = ln.strip()
-                if not ln or ln.startswith("#"):
-                    continue
-                parts = [p.strip().strip('"').strip("'") for p in (ln.split(",") if "," in ln else ln.split())]
-                if len(parts) >= 2:
-                    dist_path = os.path.join(base_dir, parts[0]).replace("\\", "/")
-                    ref_path  = os.path.join(base_dir, parts[1]).replace("\\", "/")
-                    if os.path.exists(dist_path) and os.path.exists(ref_path):
-                        self.pairs.append((dist_path, ref_path))
-
-    def __len__(self): return len(self.pairs)
-
-    def __getitem__(self, idx):
-        inp, tgt = self.pairs[idx]
-        inp_img = Image.open(inp).convert("RGB")
-        tgt_img = Image.open(tgt).convert("RGB")
-        name = os.path.basename(inp)   # 파일 이름 반환
-        return self.transform(inp_img), self.transform(tgt_img), name
-
-    
 # ---------------- Utils ----------------
 def _to_numpy01(t: torch.Tensor) -> np.ndarray:
     if t.dim() == 4: t = t[0]
@@ -282,13 +233,13 @@ def _save_img01(path: str, arr01: np.ndarray):
     Image.fromarray(img).save(path)
 
 @torch.no_grad()
-def evaluate_and_save(model, dataloader, tag: str, save_root: str):
+def evaluate_and_save(model, dataloader, device, tag: str, save_root: str):
     model.eval()
     total_psnr = 0.0
     total_ssim = 0.0
     n = 0
     for x, y, names in tqdm(dataloader, desc=f"[Eval] {tag}"):
-        x, y = x.to(DEVICE), y.to(DEVICE)
+        x, y = x.to(device), y.to(device)
         out = model(x).clamp(0, 1)
 
         # 저장
@@ -311,51 +262,28 @@ def evaluate_and_save(model, dataloader, tag: str, save_root: str):
 
     return (total_psnr/n if n else 0), (total_ssim/n if n else 0), n
 
+
 # ---------------- Main ----------------
 def main():
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    TEST_DIR = r"E:/restormer+volterra/data/HIDE/test"
+    GT_DIR   = r"E:/restormer+volterra/data/HIDE/GT"
+    CKPT     = r"E:\restormer+volterra\checkpoints\sots_volterra\epoch_77_valssim0.9580_valpsnr26.83.pth"
+    RESULT_DIR = r"E:/restormer+volterra/results/HIDE"
+    os.makedirs(RESULT_DIR, exist_ok=True)
+
     transform = transforms.Compose([
-        transforms.Resize((256,256)),
+        transforms.Resize((256, 256)),
         transforms.ToTensor()
     ])
 
-    test_sets = {
-        #"Rain100H": PairedFolderDataset(
-        #    r"E:/restormer+volterra/data/rain100H/test/rain",
-        #    r"E:/restormer+volterra/data/rain100H/test/norain", transform),
-        #"Rain100L": PairedFolderDataset(
-        #    r"E:/restormer+volterra/data/rain100L/test/rain",
-        #    r"E:/restormer+volterra/data/rain100L/test/norain", transform),
-        #"HIDE": PairedFolderDataset(
-        #    r"E:/restormer+volterra/data/HIDE/test",
-        #    r"E:/restormer+volterra/data/HIDE/GT",
-        #    transform),
-#
-        #"SIDD": PairedCSVDataset(
-        #    r"E:/restormer+volterra/data/SIDD/sidd_test_pairs.csv", transform),
-        #"CSD": PairedFolderDataset(
-        #    r"E:/restormer+volterra/data/CSD/Test/Snow",
-        #    r"E:/restormer+volterra/data/CSD/Test/Gt", transform),
-        #"SOTS-indoor": PairedFolderDataset(
-        #    r"E:/restormer+volterra/data/SOTS/indoor/hazy",
-        #    r"E:/restormer+volterra/data/SOTS/indoor/clear",
-        #    transform),
-#
-        #"SOTS-outdoor": PairedFolderDataset(
-        #    r"E:/restormer+volterra/data/SOTS/outdoor/hazy",
-        #    r"E:/restormer+volterra/data/SOTS/outdoor/clear",
-        #    transform),
+    # Dataset
+    dataset = HIDEFolderDataset(TEST_DIR, GT_DIR, transform)
+    dl = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=2, pin_memory=True)
+    print(f"✓ Found {len(dataset)} valid pairs in HIDE dataset")
 
-        "KADID-gaussian": PairedListDataset(
-            r"E:/restormer+volterra/data/kadid_seperate/gaussian/pairs_gaussian.txt",
-            transform),
-        "KADID-impulse": PairedListDataset(
-            r"E:/restormer+volterra/data/kadid_seperate/impulse noise/pairs_impulse.txt",
-            transform),
-        "KADID-white": PairedListDataset(
-            r"E:/restormer+volterra/data/kadid_seperate/white noise/pairs_white.txt",
-            transform),
-    }
-
+    # Load model
     model = RestormerVolterra().to(DEVICE)
     state = torch.load(CKPT, map_location=DEVICE)
     if isinstance(state, dict) and "state_dict" in state:
@@ -364,12 +292,12 @@ def main():
     model.load_state_dict(state, strict=False)
     print(f"✓ Loaded checkpoint: {CKPT}")
 
-    print("\n=========== Unified Evaluation ===========")
-    for tag, dataset in test_sets.items():
-        dl = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=2, pin_memory=True)
-        psnr, ssim, n = evaluate_and_save(model, dl, tag, RESULT_DIR)
-        print(f"{tag:12s} | images: {n:4d} | PSNR: {psnr:.2f} dB | SSIM: {ssim:.4f}")
-    print(f"🖼  All restored images saved under: {RESULT_DIR}")
+    # Evaluate
+    psnr, ssim, n = evaluate_and_save(model, dl, DEVICE, "HIDE", RESULT_DIR)
+    print("\n=========== HIDE Test Summary ===========")
+    print(f"HIDE        | Images: {n:4d} | PSNR: {psnr:.2f} dB | SSIM: {ssim:.4f}")
+    print(f"🖼 Restored images saved under: {RESULT_DIR}/HIDE")
+
 
 if __name__ == "__main__":
     main()
