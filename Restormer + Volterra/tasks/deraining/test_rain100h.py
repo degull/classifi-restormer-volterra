@@ -16,7 +16,9 @@ from models.restormer_volterra import RestormerVolterra
 
 DEVICE   = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 TEST_DIR = r"E:/restormer+volterra/data/rain100H/test"
-CKPT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_rain100h\epoch_100.pth"
+
+# ✅ 평가할 체크포인트 경로 (수동으로 바꿔주세요)
+CKPT_PATH = r"E:\restormer+volterra\Restormer + Volterra\tasks\deraining\checkpoint_rain100hs\epoch_7_ssim0.8286_psnr25.37.pth"
 
 
 def get_transform():
@@ -59,6 +61,9 @@ def evaluate(model, test_dir, transform):
             total_ssim += ssim
             count += 1
 
+            # 🔎 이미지별 결과 출력
+            print(f"[{fname}] PSNR: {psnr:.2f} | SSIM: {ssim:.4f}")
+
     avg_psnr = total_psnr / count
     avg_ssim = total_ssim / count
     print(f"\n✅ [Rain100H Testset]  PSNR: {avg_psnr:.2f} | SSIM: {avg_ssim:.4f}")
@@ -66,9 +71,22 @@ def evaluate(model, test_dir, transform):
 
 def main():
     model = RestormerVolterra().to(DEVICE)
+
     checkpoint = torch.load(CKPT_PATH, map_location=DEVICE)
-    model.load_state_dict(checkpoint)
     print(f"[INFO] Loaded checkpoint: {CKPT_PATH}")
+
+    # ✅ state_dict만 로드
+    if isinstance(checkpoint, dict):
+        if "model" in checkpoint:
+            state_dict = checkpoint["model"]
+        elif "state_dict" in checkpoint:
+            state_dict = checkpoint["state_dict"]
+        else:
+            state_dict = checkpoint
+    else:
+        state_dict = checkpoint
+
+    model.load_state_dict(state_dict)
 
     transform = get_transform()
     evaluate(model, TEST_DIR, transform)

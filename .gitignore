@@ -1,3 +1,8 @@
+# 기존
 checkpoints/
 data/
 results/
+
+# 추가
+Restormer + Volterra/tasks/deraining/checkpoint_rain100h/
+Restormer + Volterra/tasks/deraining/checkpoint_rain100hs/

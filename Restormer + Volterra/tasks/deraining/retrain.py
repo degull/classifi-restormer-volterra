@@ -21,7 +21,8 @@ from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
 
 from models.restormer_volterra import RestormerVolterra
-from re_dataset.rain100l_dataset import Rain100LDataset   # ✅ Rain100L dataset
+from re_dataset.rain100h_dataset import Rain100HDataset
+from re_dataset.rain100l_dataset import Rain100LDataset
 
 
 # ---------------- Config ----------------
@@ -30,27 +31,31 @@ EPOCHS     = 100
 LR         = 2e-4
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-TRAIN_DIR  = r"E:/restormer+volterra/data/rain100L/train"
-TEST_DIR   = r"E:/restormer+volterra/data/rain100L/test"
+# ✅ 여기서 H/L 데이터셋 선택
+DATASET    = "Rain100H"   # "Rain100L" 로 바꾸면 L 학습
+TRAIN_DIR  = rf"E:/restormer+volterra/data/{DATASET}/train"
+TEST_DIR   = rf"E:/restormer+volterra/data/{DATASET}/test"
 
-# ✅ 저장 경로
-SAVE_DIR   = r"E:/restormer+volterra/Restormer + Volterra/tasks/deraining/checkpoint_rain100ls"
+# ✅ 저장 경로 (고정)
+SAVE_DIR   = r"E:/restormer+volterra/Restormer + Volterra/tasks/deraining/checkpoint"
 os.makedirs(SAVE_DIR, exist_ok=True)
-
-# ✅ 이어서 학습할 checkpoint (필요 시 수정)
-RESUME_CKPT  = None
-START_EPOCH  = 0
 
 resize_schedule = {0: 128, 30: 192, 60: 256}
 
 
 # ---------------- Transform ----------------
-def get_transform(epoch: int):
+def get_train_transform(epoch: int):
+    """훈련용 progressive resize"""
     size = max(v for k, v in resize_schedule.items() if epoch >= k)
     return transforms.Compose([
         transforms.Resize((size, size), interpolation=transforms.InterpolationMode.BICUBIC),
         transforms.ToTensor()
     ])
+
+
+def get_test_transform():
+    """평가용 (원본 해상도 유지)"""
+    return transforms.ToTensor()
 
 
 # ---------------- Evaluation ----------------
@@ -99,36 +104,24 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scaler    = GradScaler()
 
-    start_epoch = 0
+    if DATASET == "Rain100H":
+        DatasetClass = Rain100HDataset
+    elif DATASET == "Rain100L":
+        DatasetClass = Rain100LDataset
+    else:
+        raise ValueError("DATASET must be 'Rain100H' or 'Rain100L'")
 
-    # ✅ 이어서 학습 로드
-    if RESUME_CKPT and os.path.exists(RESUME_CKPT):
-        print(f"[INFO] Resuming training from: {RESUME_CKPT}")
-        checkpoint = torch.load(RESUME_CKPT, map_location=DEVICE)
+    print(f"\n[INFO] Training {DATASET} Only (Save with SSIM+PSNR)\n")
 
-        if "model" in checkpoint:
-            model.load_state_dict(checkpoint["model"])
-        else:
-            model.load_state_dict(checkpoint)
-
-        if "optimizer" in checkpoint:
-            optimizer.load_state_dict(checkpoint["optimizer"])
-        if "scaler" in checkpoint:
-            scaler.load_state_dict(checkpoint["scaler"])
-
-        start_epoch = START_EPOCH
-        print(f"[INFO] Resumed from epoch {start_epoch}")
-
-    print(f"\n[INFO] Training Rain100L (Save checkpoints with SSIM+PSNR)\n")
-
-    for epoch in range(start_epoch, EPOCHS):
-        transform = get_transform(epoch)
-
-        train_ds = Rain100LDataset(root_dir=TRAIN_DIR, transform=transform)
+    for epoch in range(EPOCHS):
+        # --- Train ---
+        train_transform = get_train_transform(epoch)
+        train_ds = DatasetClass(root_dir=TRAIN_DIR, transform=train_transform)
         train_dl = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,
                               num_workers=4, pin_memory=True)
 
-        print(f"[Epoch {epoch+1:3d}] Input size: {transform.transforms[0].size} | Train Samples: {len(train_ds)}")
+        print(f"[Epoch {epoch+1:3d}] Input size: {train_transform.transforms[0].size} "
+              f"| Train Samples: {len(train_ds)}")
 
         model.train()
         epoch_loss = 0.0
@@ -155,20 +148,14 @@ def main():
         avg_loss = epoch_loss / len(train_dl)
         print(f"[Epoch {epoch+1:3d}] Train Loss: {avg_loss:.6f}")
 
-        # --- Evaluate on test set ---
-        test_psnr, test_ssim = evaluate(model, TEST_DIR, transform)
-        print(f"✅ [Epoch {epoch+1:3d}] Test PSNR: {test_psnr:.2f} | SSIM: {test_ssim:.4f}")
+        # --- Evaluate (원본 해상도) ---
+        test_transform = get_test_transform()
+        test_psnr, test_ssim = evaluate(model, TEST_DIR, test_transform)
+        print(f"✅ [Epoch {epoch+1:3d}] Test  PSNR: {test_psnr:.2f} | Test  SSIM: {test_ssim:.4f}")
 
-        # --- Save checkpoint with PSNR / SSIM in filename ---
-        save_name = f"epoch_{epoch+1}_ssim{test_ssim:.4f}_psnr{test_psnr:.2f}.pth"
-        torch.save({
-            "model": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "scaler": scaler.state_dict(),
-            "epoch": epoch+1,
-            "psnr": test_psnr,
-            "ssim": test_ssim
-        }, os.path.join(SAVE_DIR, save_name))
+        # --- Save with PSNR / SSIM in filename ---
+        save_name = f"{DATASET.lower()}_epoch{epoch+1}_ssim{test_ssim:.4f}_psnr{test_psnr:.2f}.pth"
+        torch.save(model.state_dict(), os.path.join(SAVE_DIR, save_name))
 
 
 if __name__ == "__main__":

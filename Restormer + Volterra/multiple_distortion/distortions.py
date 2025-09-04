@@ -16,38 +16,24 @@ def motion_blur(img, level):
     arr = cv2.filter2D(arr, -1, kernel)
     return Image.fromarray(arr)
 
-""" def defocus_blur(img, level):
-    arr = np.array(img)
-    k = 3 + 2 * level
-    return Image.fromarray(cv2.blur(arr, (k, k))) """
-
 # ---------------- Noise ----------------
-""" def gaussian_noise(img, level):
+def gaussian_noise(img, level):
     arr = np.array(img).astype(np.float32)
     noise = np.random.normal(0, level * 5, arr.shape)
     arr = np.clip(arr + noise, 0, 255).astype(np.uint8)
-    return Image.fromarray(arr) """
+    return Image.fromarray(arr)
 
-""" def impulse_noise(img, level):
+def impulse_noise(img, level):
     arr = np.array(img)
     prob = 0.01 * level
     noisy = arr.copy()
     mask = np.random.rand(*arr.shape[:2])
     noisy[mask < prob/2] = 0
     noisy[mask > 1 - prob/2] = 255
-    return Image.fromarray(noisy) """
-
-""" def poisson_noise(img, level):
-    arr = np.array(img).astype(np.float32) / 255.0
-    vals = len(np.unique(arr))
-    vals = 2 ** np.ceil(np.log2(vals))
-    noisy = np.random.poisson(arr * vals * level) / float(vals)
-    noisy = np.clip(noisy * 255, 0, 255).astype(np.uint8)
-    return Image.fromarray(noisy) """
+    return Image.fromarray(noisy)
 
 # ---------------- Rain ----------------
 def add_rain(img, level):
-    """Synthetic rain streaks overlay"""
     arr = np.array(img).astype(np.uint8)
     h, w, _ = arr.shape
     rain = np.zeros((h, w), dtype=np.uint8)
@@ -66,7 +52,6 @@ def add_rain(img, level):
 
 # ---------------- Snow ----------------
 def add_snow(img, level):
-    """Synthetic snowflakes overlay"""
     arr = np.array(img).astype(np.uint8)
     h, w, _ = arr.shape
     snow = np.zeros((h, w), dtype=np.uint8)
