@@ -18,7 +18,7 @@ DEVICE   = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 TEST_DIR = r"E:/restormer+volterra/data/rain100L/test"
 
 # ✅ 평가할 checkpoint 경로 (원하는 모델로 바꿔주세요)
-CKPT_PATH = r"E:/restormer+volterra/Restormer + Volterra/tasks/deraining/checkpoint_rain100ls/epoch_100_ssim0.9500_psnr32.00.pth"
+CKPT_PATH = r"E:\restormer+volterra\checkpoints\restormer_volterra_rain100l\epoch_91_ssim0.9538_psnr33.98.pth"
 
 
 def get_transform():
