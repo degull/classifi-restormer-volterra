@@ -7,10 +7,10 @@ DISTORTION_GROUPS = {
     "rain": [add_rain],
     "snow": [add_snow],
     "blur": [gaussian_blur, motion_blur],
-    "noise": [gaussian_noise, impulse_noise],
+    #"noise": [gaussian_noise, impulse_noise],
 }
 
-def apply_random_distortions(img, Ndist=4, return_info=False):
+def apply_random_distortions(img, Ndist=3, return_info=False):
     # 몇 개 distortion 적용할지 (1 ~ min(Ndist, 그룹 수))
     ndist = random.randint(1, min(Ndist, len(DISTORTION_GROUPS)))
     chosen_groups = random.sample(list(DISTORTION_GROUPS.keys()), ndist)
