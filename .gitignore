@@ -6,3 +6,5 @@ results/
 # 추가
 Restormer + Volterra/tasks/deraining/checkpoint_rain100h/
 Restormer + Volterra/tasks/deraining/checkpoint_rain100hs/
+
+Restormer + Volterra/distortion_imgs

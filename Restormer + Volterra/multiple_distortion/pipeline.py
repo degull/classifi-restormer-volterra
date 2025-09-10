@@ -1,30 +1,34 @@
-# pipeline.py
-import random, numpy as np
-from distortions import *
+# E:\restormer+volterra\Restormer + Volterra\multiple_distortion\pipeline.py
 
-# Restoration-related groups only
-DISTORTION_GROUPS = {
-    "rain": [add_rain],
-    "snow": [add_snow],
-    "blur": [gaussian_blur, motion_blur],
-    #"noise": [gaussian_noise, impulse_noise],
-}
+import random
+import numpy as np
+from .utils_data import distort_images   # ✅ ARNIQA 방식 distort_images 사용
 
-def apply_random_distortions(img, Ndist=3, return_info=False):
-    # 몇 개 distortion 적용할지 (1 ~ min(Ndist, 그룹 수))
-    ndist = random.randint(1, min(Ndist, len(DISTORTION_GROUPS)))
-    chosen_groups = random.sample(list(DISTORTION_GROUPS.keys()), ndist)
-    chosen = [random.choice(DISTORTION_GROUPS[g]) for g in chosen_groups]
-    random.shuffle(chosen)
+def apply_random_distortions(img, Ndist: int = 4, num_levels: int = 5, return_info: bool = False):
+    """
+    Apply ARNIQA-style random multiple distortions to an image.
 
-    out = img.copy()
-    info = []
-    for fn in chosen:
-        # 강도: Gaussian 분포 샘플링 (1~5)
-        level = int(np.clip(np.random.normal(2.5, 1.0), 1, 5))
-        out = fn(out, level)
-        info.append(f"{fn.__name__}(L{level})")
+    Args:
+        img (PIL.Image or torch.Tensor): 입력 이미지
+        Ndist (int): 최대 몇 개 distortion을 적용할지 (default=4)
+        num_levels (int): distortion severity level (1~5)
+        return_info (bool): distortion 함수명과 값 반환 여부
+
+    Returns:
+        out (Tensor): distortion이 적용된 이미지
+        info (list, optional): distortion 함수 이름 및 값
+    """
+    # Tensor로 변환
+    import torchvision.transforms as T
+    if not isinstance(img, np.ndarray) and not hasattr(img, "shape"):  # PIL.Image 인 경우
+        img = T.ToTensor()(img)
+
+    # Distortion 적용
+    out, distort_functions, distort_values = distort_images(
+        img, max_distortions=Ndist, num_levels=num_levels
+    )
 
     if return_info:
+        info = [f"{fn.__name__}(val={val})" for fn, val in zip(distort_functions, distort_values)]
         return out, info
     return out
