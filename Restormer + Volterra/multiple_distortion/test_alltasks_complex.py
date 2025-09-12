@@ -32,6 +32,9 @@ CLEAN_DIRS = [
     r"E:/restormer+volterra/data/SIDD/Data",
 ]
 
+# 허용 확장자 (tif/tiff 추가)
+ALLOWED_EXT = [".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"]
+
 # 저장 디렉토리
 DISTORTION_DIR = r"E:/restormer+volterra/Restormer + Volterra/distortion_imgs/distortion"
 RESULTS_DIR = r"E:/restormer+volterra/Restormer + Volterra/distortion_imgs/results"
@@ -69,7 +72,7 @@ def main():
 
     for clean_dir in CLEAN_DIRS:
         img_paths = sorted(glob.glob(os.path.join(clean_dir, "*.*")))
-        img_paths = [p for p in img_paths if os.path.splitext(p)[1].lower() in [".png", ".jpg", ".jpeg", ".bmp"]]
+        img_paths = [p for p in img_paths if os.path.splitext(p)[1].lower() in ALLOWED_EXT]
 
         print(f"\n[INFO] Processing dataset: {clean_dir} | {len(img_paths)} images")
 

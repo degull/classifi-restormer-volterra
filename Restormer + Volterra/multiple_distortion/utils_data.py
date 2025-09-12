@@ -119,9 +119,7 @@ def get_distortions_composition(
     max_distortions: int = 7,
     num_levels: int = 5
 ) -> Tuple[List[Callable], List[Union[int, float]]]:
-    """
-    Return a random composition of distortions (ARNIQA-style).
-    """
+
     MEAN = 0
     STD = 2.5
 
