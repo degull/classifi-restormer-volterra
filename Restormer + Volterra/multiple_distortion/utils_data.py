@@ -168,3 +168,4 @@ def center_corners_crop(img: PILImage, crop_size: int = 224) -> List[PILImage]:
         TF.crop(img, height - crop_size, width - crop_size, crop_size, crop_size)  # Bottom-right
     ]
     return crops
+

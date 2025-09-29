@@ -266,3 +266,4 @@ def non_linear_contrast_change(x: torch.Tensor, output_offset_value: float) -> t
     return torch.clamp(x * (1 + output_offset_value), 0, 1)
 
 
+
